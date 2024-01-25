@@ -1,0 +1,15 @@
+*CheatSheet*
+Source/Private/PACLI/icudt58l.dat
+Source/Private/PACLI/Pacli.exe
+Logs/*
+IdentityAuth.log
+PACLIOutput
+PACLIError
+.vscode/*
+Source/Private/PACLI/output
+Source/Private/PACLI/Output.txt
+Source/Private/PACLI/Start-Process-Error
+Source/Private/PACLI/Start-Process-output
+Source/Private/PACLI/Test
+Source/Private/PACLI/test.txt
+.gitkeep

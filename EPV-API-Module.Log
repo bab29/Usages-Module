@@ -1,0 +1,13 @@
+[2023-10-31 05:25:52]	[VERBOSE]	Excluding the following properties: Name UsageID UsageInfo Safe Folder File
+[2023-10-31 05:25:52]	[Debug]	Getting file catagories from "Operating System-BAB-WindowsDomainAccount-pvwa.lab.local-Tester-WinService-FindMeHAR-FindMeHAR" in safe "BABTest"
+[2023-10-31 05:25:52]	[Debug]	PACLISessionID providede using PACLISessionID: 76
+[2023-10-31 05:25:52]	[Debug]	CommandGUID set to the following: 13809e5d-201b-4054-abb7-826a51729ad7
+[2023-10-31 05:25:52]	[Debug]	PACLISessionID providede using PACLISessionID: 76
+[2023-10-31 05:25:52]	[Debug]	No SESSIONID found in the command. Added SESSIONID to end of command
+[2023-10-31 05:25:52]	[Debug]	Running the following command: LISTFILECATEGORIES Safe="BABTest" Folder="ROOT" File="Operating System-BAB-WindowsDomainAccount-pvwa.lab.local-Tester-WinService-FindMeHAR-FindMeHAR"  output(ENCLOSE,CATEGORYNAME,CATEGORYVALUE) SESSIONID=76
+[2023-10-31 05:25:53]	[VERBOSE]	Contents of ".\13809e5d-201b-4054-abb7-826a51729ad7-Error": 
+[2023-10-31 05:25:53]	[VERBOSE]	Contents of ".\13809e5d-201b-4054-abb7-826a51729ad7-Out": "PolicyID","WinService" "Address","FindMeHAR" "MasterPassName","Operating System-BAB-WindowsDomainAccount-pvwa.lab.local-Tester" "ServiceName","FindMeHAR" "DeviceType","Operating System" "MasterPassFolder","Root" 
+[2023-10-31 05:25:53]	[Debug]	Result of exclusions on target: @{PolicyID=WinService; Address=FindMeHAR; MasterPassName=Operating System-BAB-WindowsDomainAccount-pvwa.lab.local-Tester; ServiceName=FindMeHAR; DeviceType=Operating System; MasterPassFolder=Root}
+[2023-10-31 05:25:53]	[Debug]	The following file catagories need to be added to "Operating System-BAB-WindowsDomainAccount-pvwa.lab.local-Tester-WinService-FindMeHAR-FindMeHAR" in safe "BABTest": 
+[2023-10-31 05:25:53]	[Debug]	The following file catagories need to be updated on "Operating System-BAB-WindowsDomainAccount-pvwa.lab.local-Tester-WinService-FindMeHAR-FindMeHAR" in safe "BABTest": 
+[2023-10-31 05:25:53]	[INFO]	Synchronization of object "Operating System-BAB-WindowsDomainAccount-pvwa.lab.local-Tester-WinService-FindMeHAR-FindMeHAR" in safe "BABTest" completed succesfully
