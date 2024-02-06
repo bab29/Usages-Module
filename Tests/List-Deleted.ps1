@@ -3,7 +3,7 @@ Build-Module C:\GIT\EPV-API-Module\Source\ -OutputDirectory C:\GIT\EPV-API-Modul
 Import-Module 'C:\git\EPV-API-Module\Output\EPV-API-Module\EPV-API-Module.psm1' -Force -Verbose
 Set-Location C:\GIT\EPV-API-Module\Source\Public\PACLI
 
-Initialize-EPV-API-Module
+Initialize-EPVAPIModule
 $Global:PACLIApp = "C:\GIT\EPV-API-Module\Source\Public\PACLI\Pacli.exe"
 $Global:LOG_FILE_PATH = "C:\GIT\EPV-API-Module\Logs\Debug.log"
 $Global:InVerbose = $true

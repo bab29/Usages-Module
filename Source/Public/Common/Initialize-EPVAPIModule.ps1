@@ -1,4 +1,4 @@
-function Initialize-EPV-API-Module {
+function Initialize-EPVAPIModule {
     <#
         .SYNOPSIS
         Initializes the Usages Module
@@ -13,6 +13,7 @@ function Initialize-EPV-API-Module {
         $private:ScriptLocation = Split-Path -Parent $ScriptFullPath
     }
     $Global:WaitForExit = $(New-TimeSpan -Minutes 30)
+    $Global:WaitForExit = 1800000
     $private:LOG_DATE = $(Get-Date -Format yyyyMMdd) + "-" + $(Get-Date -Format HHmmss)
     $script:LOG_FILE_PATH = "$private:ScriptLocation\EPV-API-Module.Log"
     "Module Loaded at $private:LOG_DATE" | Out-File $script:LOG_FILE_PATH -Append

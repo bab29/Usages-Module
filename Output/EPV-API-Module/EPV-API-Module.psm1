@@ -461,26 +461,56 @@ Function Invoke-PACLICommand {
     $PACLIProcessObject = New-Object System.Diagnostics.Process
     $PACLIProcessObject.StartInfo = $PACLIProcessStartInfo
     $PACLIProcessObject.Start() | Out-Null
+
     $WaitForExit = $Global:WaitForExit
-    IF ($PACLIProcessObject.WaitForExit($WaitForExit)) {
-        [PSCustomObject]$Results = @{
-            StandardOutput = $PACLIProcessObject.StandardOutput.ReadToEnd()
-            StandardError  = $PACLIProcessObject.StandardError.ReadToEnd()
+
+
+    $Count = 0
+    While (!$PACLIProcessObject.HasExited) {
+        Write-LogMessage -type Info -Msg "PACLI Still running..."
+        Write-LogMessage -type Debug -Message $($PACLIProcessObject | ConvertTo-Json)
+        Start-Sleep -Seconds 30
+        $count += 1
+        IF (60 -lt $count) {
+            Write-LogMessage -type Debug -Message $($PACLIProcessObject | ConvertTo-Json)
+            Throw "PACLI Command has run for greater then 600 seconds"
         }
-        If (![string]::IsNullOrEmpty($Results.StandardError)) {
-            $Excepetion = [System.Management.Automation.HaltCommandException]::New("Error running PACLI command")
-            $Excepetion.Source = $Command
-            $Excepetion.Data.Add("StandardOut", $Results.StandardOutput)
-            $Excepetion.Data.Add("StandardError", $Results.StandardError)
-            Throw $Excepetion
-        }
-        Return  $Results
-    } Else {
-        Write-LogMessage -type Debug -Message $($psitem |ConvertTo-Json)
-        Throw "PACLI Command has run for greater then 600 seconds"
     }
+    [PSCustomObject]$Results = @{
+        StandardOutput = $PACLIProcessObject.StandardOutput.ReadToEnd()
+        StandardError  = $PACLIProcessObject.StandardError.ReadToEnd()
+    }
+    If (![string]::IsNullOrEmpty($Results.StandardError)) {
+        $Excepetion = [System.Management.Automation.HaltCommandException]::New("Error running PACLI command")
+        $Excepetion.Source = $Command
+        $Excepetion.Data.Add("StandardOut", $Results.StandardOutput)
+        $Excepetion.Data.Add("StandardError", $Results.StandardError)
+        Throw $Excepetion
+    }
+    Return  $Results
 }
-#EndRegion '.\Private\PACLI\Invoke-PACLICommand.ps1' 59
+
+<# 
+
+IF ($PACLIProcessObject.WaitForExit($WaitForExit)) {
+    [PSCustomObject]$Results = @{
+        StandardOutput = $PACLIProcessObject.StandardOutput.ReadToEnd()
+        StandardError  = $PACLIProcessObject.StandardError.ReadToEnd()
+    }
+    If (![string]::IsNullOrEmpty($Results.StandardError)) {
+        $Excepetion = [System.Management.Automation.HaltCommandException]::New("Error running PACLI command")
+        $Excepetion.Source = $Command
+        $Excepetion.Data.Add("StandardOut", $Results.StandardOutput)
+        $Excepetion.Data.Add("StandardError", $Results.StandardError)
+        Throw $Excepetion
+    }
+    Return  $Results
+} Else {
+    Write-LogMessage -type Debug -Message $($psitem | ConvertTo-Json)
+    Throw "PACLI Command has run for greater then 600 seconds"
+}
+ #>
+#EndRegion '.\Private\PACLI\Invoke-PACLICommand.ps1' 89
 #Region '.\Private\Session\Get-SessionToken.ps1' -1
 
 
@@ -669,9 +699,9 @@ Function Get-LogFilePAth{
     return $script:LOG_FILE_PATH
 }
 #EndRegion '.\Public\Common\Get-LogFilePath.ps1' 4
-#Region '.\Public\Common\Initialize-EPV-API-Module.ps1' -1
+#Region '.\Public\Common\Initialize-EPVAPIModule.ps1' -1
 
-function Initialize-EPV-API-Module {
+function Initialize-EPVAPIModule {
     <#
         .SYNOPSIS
         Initializes the Usages Module
@@ -686,12 +716,13 @@ function Initialize-EPV-API-Module {
         $private:ScriptLocation = Split-Path -Parent $ScriptFullPath
     }
     $Global:WaitForExit = $(New-TimeSpan -Minutes 30)
+    $Global:WaitForExit = 1800000
     $private:LOG_DATE = $(Get-Date -Format yyyyMMdd) + "-" + $(Get-Date -Format HHmmss)
     $script:LOG_FILE_PATH = "$private:ScriptLocation\EPV-API-Module.Log"
     "Module Loaded at $private:LOG_DATE" | Out-File $script:LOG_FILE_PATH -Append
     $Global:PACLIApp = "$private:ScriptLocation\Pacli.exe"
 }
-#EndRegion '.\Public\Common\Initialize-EPV-API-Module.ps1' 21
+#EndRegion '.\Public\Common\Initialize-EPVAPIModule.ps1' 22
 #Region '.\Public\Common\Set-LogFilePath.ps1' -1
 
 function Set-LogfilePath {
