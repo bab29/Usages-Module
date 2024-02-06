@@ -20,7 +20,7 @@ Function Invoke-PACLICommand {
         Test-PACLISession
     }
 
-    IF ($command -notmatch '\b([1-9]|[1-9][0-9])\b') {
+    IF ($command -notmatch 'SESSIONID=')   {
         $Command = "$command SESSIONID=$PACLISessionID"
         Write-LogMessage -type Debug -Message "No SESSIONID found in the command. Added SESSIONID to end of command"
     }

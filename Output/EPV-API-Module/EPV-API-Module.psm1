@@ -380,6 +380,7 @@ Function Write-LogMessage {
 
 Function Format-PACLICommand {
     param (
+        # Ordered Directory of commands to be formated to the proper format for Invoke-PACLICommand to run
         [Parameter(Mandatory = $true)]
         [System.Collections.Specialized.OrderedDictionary]
         $cmdOrdDir
@@ -391,13 +392,15 @@ Function Format-PACLICommand {
         }
     Return $result
 }
-#EndRegion '.\Private\PACLI\Format-PACLICommand.ps1' 14
+#EndRegion '.\Private\PACLI\Format-PACLICommand.ps1' 15
 #Region '.\Private\PACLI\Get-PACLISessionParameter.ps1' -1
 
 Function Get-PACLISessionParameter {
     param (
+
+        # PACLI Session number to use based on the Global PACLISessionID variable
         [Parameter(Mandatory=$false)]
-        [int]$PACLISessionID
+        $PACLISessionID
     )
     IF (([string]::IsNullOrEmpty($PACLISessionID)) -and ([string]::IsNullOrEmpty($Global:PACLISessionID))) {
         Write-LogMessage -type Error -Message "PACLISessionID was not provided and no global PACLISessionID set"
@@ -405,24 +408,33 @@ Function Get-PACLISessionParameter {
     } elseif ([string]::IsNullOrEmpty($PACLISessionID)) {
         $local:PACLISessionID = $Global:PACLISessionID
         Write-LogMessage -type Debug -Message "PACLISessionID was not provided, using Global PACLISessionID: $local:PACLISessionID"
-    } else {
-        $local:PACLISessionID = $global:PACLISessionID
-        Write-LogMessage -type Debug -Message "PACLISessionID providede using PACLISessionID: $local:PACLISessionID"
+
+    } elseif ((999 -eq $PACLISessionID)) {
+        $local:PACLISessionID = $Global:PACLISessionID
+        Write-LogMessage -type Debug -Message "PACLISessionID of 999 provided. Command being requested is Initialize-PACLISession without specific sessionID to be used passed"
+    }
+    else {
+        $local:PACLISessionID = $PACLISessionID
+        Write-LogMessage -type Debug -Message "PACLISessionID provided using PACLISessionID: $local:PACLISessionID"
     }
     Return $local:PACLISessionID
 }
-#EndRegion '.\Private\PACLI\Get-PACLISessionParameter.ps1' 18
+#EndRegion '.\Private\PACLI\Get-PACLISessionParameter.ps1' 25
 #Region '.\Private\PACLI\Invoke-PACLICommand.ps1' -1
 
 Function Invoke-PACLICommand {
     param (
+        # Command to be run by PACLI
         [Parameter(Mandatory = $true)]
         [string]$Command,
-        [int]$PACLISessionID = 999,
-        [switch]$testSession
+        #Session number for PACLI to use
+        $PACLISessionID = 999,
+        #Whether to test that PACLI is successfully connecting to the vault prior to running the command
+        [switch]$testSession,
+        [switch]$NoWait
     )
 
-    $commandGUID = [guid]::NewGuid().ToString()
+    $commandGUID = "PACLI-$([guid]::NewGuid().ToString())"
     Write-LogMessage -type Debug -Message "CommandGUID set to the following: $commandGUID"
 
     $Local:PACLISessionID = Get-PACLISessionParameter -PACLISessionID $PACLISessionID
@@ -432,33 +444,41 @@ Function Invoke-PACLICommand {
         Test-PACLISession
     }
 
-    IF ($command -notmatch '\b([1-9]|[1-9][0-9])\b') {
+    IF ($command -notmatch 'SESSIONID=')   {
         $Command = "$command SESSIONID=$PACLISessionID"
         Write-LogMessage -type Debug -Message "No SESSIONID found in the command. Added SESSIONID to end of command"
     }
 
     Write-LogMessage -type Debug -Message "Running the following command: $command"
-    Start-Process -FilePath $($global:PACLIApp) -NoNewWindow -Wait -ArgumentList @($Command) -RedirectStandardOutput "$($commandGUID)-Out" -RedirectStandardError "$commandGUID-Error"
-    $errorFile = Get-Content ".\$commandGUID-Error"
-    Write-LogMessage -type Verbose -Message "Contents of `".\$commandGUID-Error`": $errorFile"
-    $outputFile = Get-Content ".\$commandGUID-Out"
-    Write-LogMessage -type Verbose -Message "Contents of `".\$commandGUID-Out`": $outputFile"
-    [PSCustomObject]$Results = @{
-        StandardOutput = $outputFile
-        StandardError  = $errorFile 
+    [System.Diagnostics.ProcessStartInfo]$PACLIProcessStartInfo = @{
+        FileName               = "$global:PACLIApp"
+        Arguments              = $Command
+        RedirectStandardOutput = $true
+        RedirectStandardError  = $true
+        CreateNoWindow  = $true
     }
-    Remove-Item -Force -Path ".\$commandGUID-Out"
-    Remove-Item -Force -Path ".\$commandGUID-Error"
-    If (![string]::IsNullOrEmpty($Results.StandardError)) {
-        $Excepetion = [System.Management.Automation.HaltCommandException]::New("Error running PACLI command")
-        $Excepetion.Source = $Command
-        $Excepetion.Data.Add("StandardOut",$Results.StandardOutput)
-        $Excepetion.Data.Add("StandardError",$Results.StandardError)
-        Throw $Excepetion
+    $PACLIProcessObject = New-Object System.Diagnostics.Process
+    $PACLIProcessObject.StartInfo = $PACLIProcessStartInfo
+    $PACLIProcessObject.Start() | Out-Null
+    $WaitForExit = 60000
+    IF ($PACLIProcessObject.WaitForExit($WaitForExit)) {
+        [PSCustomObject]$Results = @{
+            StandardOutput = $PACLIProcessObject.StandardOutput.ReadToEnd()
+            StandardError  = $PACLIProcessObject.StandardError.ReadToEnd()
+        }
+        If (![string]::IsNullOrEmpty($Results.StandardError)) {
+            $Excepetion = [System.Management.Automation.HaltCommandException]::New("Error running PACLI command")
+            $Excepetion.Source = $Command
+            $Excepetion.Data.Add("StandardOut", $Results.StandardOutput)
+            $Excepetion.Data.Add("StandardError", $Results.StandardError)
+            Throw $Excepetion
+        }
+        Return  $Results
+    } Else {
+        Throw "PACLI Command has run for greater then 60 seconds"
     }
-    Return  $Results
 }
-#EndRegion '.\Private\PACLI\Invoke-PACLICommand.ps1' 45
+#EndRegion '.\Private\PACLI\Invoke-PACLICommand.ps1' 57
 #Region '.\Private\Session\Get-SessionToken.ps1' -1
 
 
@@ -556,18 +576,28 @@ Function Test-PVWA {
 
 Function Get-Usages {
     param (
+
+        # The URL of the system to get usages from
+        # Used when sessions has not been initalized using preferred method of Initialize-Session
         [Parameter(Mandatory = $false)]
         [string]$url = $script:PVWAURL,
+        # Keywords to be added to the search
         [Parameter(Mandatory = $false)]
         [string]$Keywords,
+        # How the results are sorted
         [Parameter(Mandatory = $false)]
         [string]$SortBy,
+        # The safe to be searched
         [Parameter(Mandatory = $false)]
         [string]$SafeName,
+        # Maximum about of records to return 
         [Parameter(Mandatory = $false)]
         [string]$Limit,
+        # Use to limit results to results that starts with
         [Parameter(Mandatory = $false)]
         [boolean]$startswith,
+        # Session Token to be used when not already stored in script variable or to allow for a alternate connection
+        # Used when sessions has not been initalized using preferred method of Initialize-Session
         [Parameter(Mandatory = $false)]
         [hashtable]$sessionToken = $script:sessionToken
 
@@ -630,20 +660,43 @@ Function Get-Usages {
     return $GetUsagesList
 
 }
-#EndRegion '.\Private\Usages\Get-Usages.ps1' 77
+#EndRegion '.\Private\Usages\Get-Usages.ps1' 87
 #Region '.\Public\Common\Get-LogFilePath.ps1' -1
 
 Function Get-LogFilePAth{
     return $script:LOG_FILE_PATH
 }
 #EndRegion '.\Public\Common\Get-LogFilePath.ps1' 4
+#Region '.\Public\Common\Initialize-EPVAPIModule.ps1' -1
+
+function Initialize-UsagesModule {
+    <#
+        .SYNOPSIS
+        Initializes the Usages Module
+        .DESCRIPTION
+        Sets the location of PACLI and location to output logs to
+        Default log file name is .\Usage-Module.Log
+    #>
+    If ([string]::IsNullOrEmpty($MyInvocation.MyCommand.Path)) {
+        $private:ScriptLocation = $pwd.Path
+    } else {
+        $private:ScriptFullPath = $MyInvocation.MyCommand.Path
+        $private:ScriptLocation = Split-Path -Parent $ScriptFullPath
+    }
+    $private:LOG_DATE = $(Get-Date -Format yyyyMMdd) + "-" + $(Get-Date -Format HHmmss)
+    $script:LOG_FILE_PATH = "$private:ScriptLocation\Usage-Module.Log"
+    "Module Loaded at $private:LOG_DATE" | Out-File $script:LOG_FILE_PATH -Append
+    $Global:PACLIApp = "$private:ScriptLocation\Pacli.exe"
+}
+#EndRegion '.\Public\Common\Initialize-EPVAPIModule.ps1' 20
 #Region '.\Public\Common\Set-LogFilePath.ps1' -1
 
 function Set-LogfilePath {
         param (
-        #Sets the logfile path for the module
+        # Sets the logfile path for the module
         [Parameter(Mandatory)]
         [string]$LogFile,
+        # Switch to set LOG_FILE_PATH globally 
         [switch]$global
     )
     If ($global) {
@@ -652,7 +705,7 @@ function Set-LogfilePath {
         $script:LOG_FILE_PATH = $LogFile
     }
 }
-#EndRegion '.\Public\Common\Set-LogFilePath.ps1' 14
+#EndRegion '.\Public\Common\Set-LogFilePath.ps1' 15
 #Region '.\Public\PACLI\Get-PACLISessions.ps1' -1
 
 Function Get-PACLISessions {
@@ -671,28 +724,37 @@ Function Get-PACLISessions {
 #Region '.\Public\PACLI\Initialize-PACLISession.ps1' -1
 
 Function Initialize-PACLISession {
-
+        <#
+        .SYNOPSIS
+        Starts PACLI and sets SessionID
+        .DESCRIPTION
+        Starts PACLI and sets SessionID
+        Equivlent to PACLI INIT
+    #>
     [CmdletBinding()]
     param (
+        # Create a new session instead of using a existing session
         [Parameter()]
         [switch]
         $NewSession,
+        # Use a specific value between 1 and 99 as the session ID number
         [ValidateRange(1, 99)]
         [int]
         $PACLISessionID
     )
-    If ([string]::IsNullOrEmpty($Global:PACLISessionID)) {
+
+    If ([string]::IsNullOrEmpty($Global:PACLISessionID) -or (0 -eq $Global:PACLISessionID)) {
         $local:PACLISessionID = $(Get-Random -Minimum 1 -Maximum 100)
         Write-LogMessage -type Debug -Message "No PACLISessionID provided, generated a random ID of $Local:PACLISessionID"
     }    
     IF ([string]::IsNullOrEmpty($global:PACLIApp)) {
-        Set-Variable -Scope Global -Name "PACLIApp"-Value ".\Pacli.exe"
+        Set-Variable -Scope Global -Name "PACLIApp" -Value ".\Pacli.exe"
         Write-LogMessage -type Debug -Message "No PACLIApp provided, Set PACLIApp to $global:PACLIApp"
     }
     $PACLIProcess = Get-PACLISessions
-    If (([string]::IsNullOrEmpty($PACLIProcess)) -or $NewSession ) {
+    If (([string]::IsNullOrEmpty($PACLIProcess) -or (0 -eq $PACLIProcess)) -or $NewSession ) {
         Try {
-            Invoke-Expression "$global:PACLIApp init SESSIONID=$local:PACLISessionID"
+            $null = Invoke-PACLICommand -Command "init SESSIONID=$local:PACLISessionID" -NoWait
             Write-LogMessage -type Debug -Message "New PALCI session initizaed with a ID of $local:PACLISessionID"
         } catch {
             Throw $_
@@ -713,15 +775,18 @@ Function Initialize-PACLISession {
 
 
 
-#EndRegion '.\Public\PACLI\Initialize-PACLISession.ps1' 44
+#EndRegion '.\Public\PACLI\Initialize-PACLISession.ps1' 53
 #Region '.\Public\PACLI\Invoke-PACLIFileCategoriesList.ps1' -1
 
 Function Invoke-PACLIFileCategoriesList {
     param (
+        # File/Object name of the object to get the file catagories from
         [Parameter(Mandatory = $true)]
         [string]$Target,
+        # Safe that contains the File/Object to get values from
         [Parameter(Mandatory = $true)]
         [string]$Safe,
+        # SessionID to use
         [Parameter(Mandatory = $false)]
         [string]$PACLISessionID
     )
@@ -751,21 +816,27 @@ Function Invoke-PACLIFileCategoriesList {
 
 
 }
-#EndRegion '.\Public\PACLI\Invoke-PACLIFileCategoriesList.ps1' 36
+#EndRegion '.\Public\PACLI\Invoke-PACLIFileCategoriesList.ps1' 39
 #Region '.\Public\PACLI\Invoke-PACLIFileCategoryAdd.ps1' -1
 
 Function Invoke-PACLIFileCategoryAdd {
     param (
+        # File/Object name of the object
         [Parameter(Mandatory = $true)]
         [string]$Target,
+        # Safe that contains the File/Object
         [Parameter(Mandatory = $true)]
         [string]$Safe,
+        # SessionID to use
         [Parameter(Mandatory = $false)]
         [string]$PACLISessionID,
+        # Category to add
         [Parameter(Mandatory = $true)]
         [string]$Catagory,
+        # Value to add
         [Parameter(Mandatory = $true)]
         [string]$Value,
+        # Suppress results output for successes, errors always returned.
         [Parameter(Mandatory = $false)]
         [switch]$Suppress
 
@@ -791,19 +862,25 @@ Function Invoke-PACLIFileCategoryAdd {
     }
 
 }
-#EndRegion '.\Public\PACLI\Invoke-PACLIFileCategoryAdd.ps1' 38
+#EndRegion '.\Public\PACLI\Invoke-PACLIFileCategoryAdd.ps1' 44
 #Region '.\Public\PACLI\Invoke-PACLIFileCategoryDelete.ps1' -1
 
 Function Invoke-PACLIFileCategoryDelete {
     param (
+
+        # File/Object name of the object
         [Parameter(Mandatory = $true)]
         [string]$Target,
+        # Safe that contains the File/Object
         [Parameter(Mandatory = $true)]
         [string]$Safe,
+        # SessionID to use
         [Parameter(Mandatory = $false)]
         [string]$PACLISessionID,
+        # Category to delete
         [Parameter(Mandatory = $true)]
         [string]$Catagory,
+        # Suppress results output for successes, errors always returned.
         [Parameter(Mandatory = $false)]
         [switch]$Suppress
     )
@@ -827,7 +904,7 @@ Function Invoke-PACLIFileCategoryDelete {
         Invoke-PACLIFileCategoriesList -Safe $safe -Target $Target
     }
 }
-#EndRegion '.\Public\PACLI\Invoke-PACLIFileCategoryDelete.ps1' 34
+#EndRegion '.\Public\PACLI\Invoke-PACLIFileCategoryDelete.ps1' 40
 #Region '.\Public\PACLI\Invoke-PACLIFileCategoryUpdate.ps1' -1
 
 Function Invoke-PACLIFileCategoryUpdate {
@@ -985,21 +1062,24 @@ Function Invoke-PACLISafeClose {
 
     $PACLICommand = "CLOSESAFE SAFE=`"$Safe`""
 
-    $result = Invoke-PACLICommand -Command $PACLICommand -PACLISessionID $Local:PACLISessionID
-    IF ($Safe -in $Script:OpenSafeList) {
-        $Script:OpenSafeList.remove($safe)
-    }
-    If (![string]::IsNullOrEmpty($result.StandardError)) {
-        If ($result.StandardError -notmatch "ITATS023E") {
-            Write-LogMessage -type Error -MSG "Error while closing safe `"$safe`""
-            return
+    Try {
+        $result = Invoke-PACLICommand -Command $PACLICommand -PACLISessionID $Local:PACLISessionID
+        IF ($Safe -in $Script:OpenSafeList) {
+            $Script:OpenSafeList.remove($safe)
+        }
+    } Catch {
+        If (![string]::IsNullOrEmpty($PSItem.Exception.data.StandardError)) {
+            If ($PSItem.Exception.data.StandardError -notmatch "ITATS023E") {
+                Write-LogMessage -type Error -MSG "Error while closing safe `"$safe`""
+                return
+            }
         }
     }
     If (!$Suppress) {
         $result
     }
 }
-#EndRegion '.\Public\PACLI\Invoke-PACLISafeClose.ps1' 28
+#EndRegion '.\Public\PACLI\Invoke-PACLISafeClose.ps1' 31
 #Region '.\Public\PACLI\Invoke-PACLISafeOpen.ps1' -1
 
 Function Invoke-PACLISafeOpen {
@@ -1016,22 +1096,60 @@ Function Invoke-PACLISafeOpen {
     }
     $Local:PACLISessionID = Get-PACLISessionParameter -PACLISessionID $PACLISessionID
     $PACLICommand = "OPENSAFE SAFE=`"$Safe`" output`(ENCLOSE,NAME,STATUS,SAFEID`)"
-    $result = Invoke-PACLICommand -Command $PACLICommand -PACLISessionID $Local:PACLISessionID
-    IF ($Safe -notin $Script:OpenSafeList) {
-        $Script:OpenSafeList += $safe
-    }
-    If (![string]::IsNullOrEmpty($result.StandardError)) {
-        Write-LogMessage -type Error -MSG "Error while opening safe `"$safe`""
-        return
-    }
+
+    Try {
+        $result = Invoke-PACLICommand -Command $PACLICommand -PACLISessionID $Local:PACLISessionID
+        IF ($Safe -notin $Script:OpenSafeList) {
+            $Script:OpenSafeList += $safe
+        } 
+    } Catch {
+        If (![string]::IsNullOrEmpty($PSItem.Exception.data.StandardError)) {
+            Write-LogMessage -type Debug -MSG "Error Message: $($PSItem.Exception.data.StandardError)"
+            Write-LogMessage -type Error -MSG "Error while opening safe `"$safe`""
+            return
+        } 
+    
     If (!$Suppress) {
         $result
     }
 }
-#EndRegion '.\Public\PACLI\Invoke-PACLISafeOpen.ps1' 27
+#EndRegion '.\Public\PACLI\Invoke-PACLISafeOpen.ps1' 32
+#Region '.\Public\PACLI\Invoke-PACLISessionLogoff.ps1' -1
+
+Function Invoke-PACLISessionLogoff{
+            <#
+        .SYNOPSIS
+        Using PACLI logs off the target vault and terminates the PACLI process
+        .DESCRIPTION
+        PUsing PACLI logs off the target vault and terminates the PACLI process
+    #>
+    param (
+        [int]$PACLISessionID
+    )
+    $PACLIProcess = Get-PACLISessions
+    Try {
+        Invoke-Expression "$global:PACLIApp  logoff SESSIONID=$local:PACLIProcess"
+        Invoke-Expression "$global:PACLIApp  term SESSIONID=$local:PACLIProcess"
+    } Catch {
+        $PSItem.ErrorDetails
+    }
+    [System.Collections.ArrayList]$Script:OpenSafeList = @()
+}
+#EndRegion '.\Public\PACLI\Invoke-PACLISessionLogoff.ps1' 20
 #Region '.\Public\PACLI\Invoke-PACLISessionLogon.ps1' -1
 
 Function Invoke-PACLISessionLogon {
+
+            <#
+        .SYNOPSIS
+        Using PACLI logs onto the target vault and set defaults
+        .DESCRIPTION
+        Using PACLI logs onto the target vault and set defaults
+        Equivlent to running the following commands
+        PACLI Define
+        PACLI Default
+        PACLI Logon
+    #>
     param (
         [Parameter(Mandatory = $true)]
         [string]$vaultIP,
@@ -1044,27 +1162,32 @@ Function Invoke-PACLISessionLogon {
         Initialize-PACLISession
     }
     
-    $Local:PACLISessionID = Get-PACLISessionParameter  -PACLISessionID $PACLISessionID
+
+    $Local:PACLISessionID = Get-PACLISessionParameter -PACLISessionID $PACLISessionID
 
     while (($Credentials.password.Length -eq 0) -or [string]::IsNullOrEmpty($Credentials.username)) {
         $Credentials = Get-Credential
         If ($null -eq $Credentials) { return
         }
     }
+    Try {
+        Invoke-PACLICommand -Command "define vault=`"PCALI$local:PACLISessionID`" address=`"$vaultIP`"" | Out-Null
+        Invoke-PACLICommand -Command "default vault=`"PCALI$local:PACLISessionID`" user=`"$($Credentials.username)`" folder=`"Root`"" | Out-Null
+        [string]$resultLogon = Invoke-PACLICommand -Command "logon password=$($Credentials.GetNetworkCredential().password)" | Out-Null
+        if (![string]::IsNullOrEmpty($resultLogon)) {
+            $resultLogon
+            Invoke-PACLICommand -Command "logoff SESSIONID=$local:PACLISessionID"
+            Invoke-PACLICommand -Command "term SESSIONID=$local:PACLISessionID"
+            Write-LogMessage -type Error "Error During logon, PACLI Session Terminated"
+            continue
+        }
+    } Catch {
+        $PSItem.ErrorDetails
 
-    Invoke-Expression "$PACLIApp define vault=`"PCALI$local:PACLISessionID`" address=`"$vaultIP`" SESSIONID=$local:PACLISessionID"
-    Invoke-Expression "$PACLIApp  default vault=`"PCALI$local:PACLISessionID`" user=`"$($Credentials.username)`" folder=`"Root`" SESSIONID=$local:PACLISessionID"
-    [string]$resultLogon = Invoke-Expression "$PACLIApp  logon password=$($Credentials.GetNetworkCredential().password) SESSIONID=$local:PACLISessionID 2>&1"
-    if (![string]::IsNullOrEmpty($resultLogon)) {
-        $resultLogon
-        Invoke-Expression "$PACLIApp  logoff SESSIONID=$local:PACLISessionID"
-        Invoke-Expression "$PACLIApp  term SESSIONID=$local:PACLISessionID"
-        Write-LogMessage -type Error "Error During logon, PACLI Session Terminated"
-        continue
     }
     [System.Collections.ArrayList]$Script:OpenSafeList = @()
 }
-#EndRegion '.\Public\PACLI\Invoke-PACLISessionLogon.ps1' 34
+#EndRegion '.\Public\PACLI\Invoke-PACLISessionLogon.ps1' 50
 #Region '.\Public\PACLI\Invoke-PACLIStorePasswordObject.ps1' -1
 
 Function Invoke-PACLIStorePasswordObject {
@@ -1103,22 +1226,34 @@ Function Invoke-PACLIStorePasswordObject {
 #Region '.\Public\PACLI\Remove-PACLISession.ps1' -1
 
 Function Remove-PACLISession {
+
+        <#
+        .SYNOPSIS
+        Removes active PACLISessions
+        .DESCRIPTION
+        Removes active PACLISessions
+        Equivlent to running PACLI TERM
+    #>
     param (
+        # SessionID to terminate
         [int]$PACLISessionID,
+        # Remove all active PACLI Sessions
         [switch]$RemoveAllSessions
     )
     Function RemoveSession {
         param (
             [int]$PACLISessionID
         )
-            Invoke-Expression "$global:PACLIApp term SESSIONID=$PACLISessionID"
+
+            Invoke-Expression "`"$global:PACLIApp`" term SESSIONID=$PACLISessionID"
             Write-LogMessage -type Info "PACLI session $PACLISessionID removed successful"
     }
 
     Function RemoveAllSessions {
         $sessions = Get-PACLISessions
         If (![string]::IsNullOrEmpty($sessions)){
-        $sessions | ForEach-Object { Invoke-Expression "$global:PACLIApp term SESSIONID=$PSItem" }
+
+        $sessions | ForEach-Object { Invoke-PACLICommand -Command "term" -PACLISessionID $PSItem }
         }
         Remove-Variable -Scope Global -Name "PACLISessionID" -ErrorAction SilentlyContinue
         Write-LogMessage -type Info "All PACLI session removed successful and global scope cleared"
@@ -1136,7 +1271,7 @@ Function Remove-PACLISession {
         Remove-Variable -Scope Global -Name "PACLISessionID" -ErrorAction SilentlyContinue
     }
 }
-#EndRegion '.\Public\PACLI\Remove-PACLISession.ps1' 35
+#EndRegion '.\Public\PACLI\Remove-PACLISession.ps1' 47
 #Region '.\Public\PACLI\Set-PACLISession.ps1' -1
 
 Function Set-PACLISession{
@@ -1180,46 +1315,39 @@ Function Close-Session {
 #Region '.\Public\Sessions\Initialize-Session.ps1' -1
 
 function Initialize-Session {
+
+    <#
+        .SYNOPSIS
+        Connects to the source PVWA
+        .DESCRIPTION
+        Connects to the source PVWA and tests the connection to ensure the supplied credentials/LogonToken are working
+    #>
     [CmdletBinding()]
     param (
-        <#
-    URL for the environment
-    - HTTPS://Destination.lab.local/PasswordVault
-    #>
+        # URL for the environment
+        #- HTTPS://Destination.lab.local/PasswordVault
+    
         [Parameter(Mandatory = $false)]
         [Alias("URL")]
         [String]$PVWAURL,
-
-        <#
-    Authentication types for logon.
-	- Available values: _CyberArk, LDAP, RADIUS_
-	- Default value: _CyberArk_
-    #>
-
+        # Authentication types for logon.
+        # - Available values: _CyberArk, LDAP, RADIUS_
+        # - Default value: _CyberArk_
         [Parameter(Mandatory = $false)]
         [ValidateSet("cyberark", "ldap", "radius")]
         [String]$AuthType = "cyberark",
-
         #One Time Password for use with RADIUS
         [Parameter(Mandatory = $false)]
         $otp,
-
-        <#
-    credentials for source environment
-    #>
+        # Credentials for source environment
         [Parameter(Mandatory = $false)]
         [PSCredential]$PVWACredentials,
-
-        <#
-    Headers for use with environment
-    - Used with Privileged Cloud environment
-    - When used, log off is suppressed in the environment
-    #>
+        # Headers for use with environment
+        # - Used with Privileged Cloud environment
+        # - When used, log off is suppressed in the environment
         [Parameter(Mandatory = $false)]
         $logonToken,
-        <#
-            Use this switch to Disable SSL verification (NOT RECOMMENDED)
-            #>
+        # Use this switch to Disable SSL verification (NOT RECOMMENDED)
         [Parameter(Mandatory = $false)]
         [Switch]$DisableSSLVerify
     )
@@ -1246,7 +1374,8 @@ function Initialize-Session {
             return 
         }
     }
-    New-Variable -Scope script -Name PVWAURL -Value $PVWAURL -force
+
+    New-Variable -Scope script -Name PVWAURL -Value $PVWAURL -Force
     if (Test-Session -sessionToken $script:sessionToken -url $script:PVWAURL) {
         Write-LogMessage -type Info -MSG "Session successfully configured and tested"
         Write-LogMessage -type Debug -MSG "Token set to $($script:sessionToken |ConvertTo-Json -Depth 10)"
@@ -1254,7 +1383,7 @@ function Initialize-Session {
         Write-LogMessage -type Error -MSG "Session failed to connect successfully"
     }
 }
-#EndRegion '.\Public\Sessions\Initialize-Session.ps1' 76
+#EndRegion '.\Public\Sessions\Initialize-Session.ps1' 70
 #Region '.\Public\Sessions\Test-Session.ps1' -1
 
 Function Test-Session {
@@ -1305,30 +1434,50 @@ Function Clear-Usagelist {
 #EndRegion '.\Public\Usages\Clear-Usagelist.ps1' 4
 #Region '.\Public\Usages\Export-Usageslist.ps1' -1
 
+
 Function Export-Usageslist {
+    <#
+        .SYNOPSIS
+        Exports usages from target
+        .DESCRIPTION
+        Exports the usages from the target environment using REST API (undocumented)
+        Creates CSV file to allow for easy review and import
+    #>
     param (
+        # File name of the CSV file created
         [Parameter(Mandatory = $false)]
         [ValidateScript({ Test-Path -Path $_ -PathType Leaf -IsValid })]
         [ValidatePattern('\.csv$')]
         $exportCSV = ".\ExportOfUsages.csv",
+
+        # URL of PVWA. Must include "/PasswordVault"
         [Parameter(Mandatory = $false)]
         [string]$url = $script:PVWAURL,
+        # Keywords to search by
+        # How keywords are searched is controlled by "WideAccountsSearch" and values present in "Search Properties"
         [Parameter(Mandatory = $false)]
         [string]$Keywords,
+        # Property to sort results by (Ineffective on exports)
         [Parameter(Mandatory = $false)]
         [string]$SortBy,
+        # Name of Safe to Export From
         [Parameter(Mandatory = $false)]
         [string]$SafeName,
+        # Limit of accounts to return. 
+        # Maximum is controlled via MaxDisplayedRecords
         [Parameter(Mandatory = $false)]
         [string]$Limit,
+        # Limit Keyword searches to "StartsWith" instead of default "Contains"
         [Parameter(Mandatory = $false)]
         [boolean]$startswith,
+        # PACLI SessionID to use
         [Parameter(Mandatory = $false)]
         [hashtable]$sessionToken
     )
-
-    $parms = $PSBoundParameters | Where-Object Values -NE $null
+    $excludeProp = @("exportCSV")
+    $parms = $PSBoundParameters | Where-Object Values -NE $null | Where-Object Keys -NotIn $excludeProp
     Write-LogMessage -Type Info -Msg "Starting export of usages"
+
     If ([string]::IsNullOrEmpty($parms)) {
         $usages = Get-Usages
     } else {
@@ -1336,19 +1485,28 @@ Function Export-Usageslist {
     }
     Write-LogMessage -Type Info -Msg "Found $($usages.count) usages"
     Write-LogMessage -Type Info -Msg "Starting export to CSV of $($usages.count) usages"
-    $usages | `
-            Where-Object { $_.safename -notIn $objectSafesToRemove } | `
-            Export-Csv -Path $exportCSV -NoTypeInformation
+    $usages = $usages | Where-Object { $PSItem.Safe -notIn $objectSafesToRemove }
+    [string[]]$usageProperties = $usages | ForEach-Object { $PSItem.PSObject.Properties.Name } | Select-Object -Unique | Sort-Object
+    [string[]]$outputProperties = @("Safe", "MasterPassName", "MasterPassFolder", "PolicyID", "Name", "Username", "Address", "UsageID", "Folder") + $usageProperties | Select-Object -Unique
+    $usages | Select-Object $outputProperties | Sort-Object -Property "Safe", "PolicyID", "MasterPassName", "Name" | Export-Csv $exportCSV
     Write-LogMessage -Type Info -Msg "Export of $($usages.count) usages completed."
     New-Variable -Force -Scope Script -Name UsagesList -Value $usages
 }
-#EndRegion '.\Public\Usages\Export-Usageslist.ps1' 38
+#EndRegion '.\Public\Usages\Export-Usageslist.ps1' 59
 #Region '.\Public\Usages\Get-Usageslist.ps1' -1
 
 Function Get-Usageslist {
+        <#
+        .SYNOPSIS
+        Returns a PSCustomObject of the usages that are in memory
+        .DESCRIPTION
+        Returns a PSCustomObject of the usages that are in memory
+        Loaded via Export-UsagesList or Import-UsagesList
+    #>
+
     return $script:UsagesList
 }
-#EndRegion '.\Public\Usages\Get-Usageslist.ps1' 4
+#EndRegion '.\Public\Usages\Get-Usageslist.ps1' 12
 #Region '.\Public\Usages\Import-Usages.ps1' -1
 
 Function Import-Usagelist {
@@ -1368,10 +1526,49 @@ Function Import-Usagelist {
     }
 }
 #EndRegion '.\Public\Usages\Import-Usages.ps1' 17
+#Region '.\Public\Usages\Import-Usageslist.ps1' -1
+
+Function Import-Usageslist {
+    <#
+        .SYNOPSIS
+        Imports the CSV of usages
+        .DESCRIPTION
+        Imports the CSV of usages
+        Use Export-Usagelist to create a CSV file for review. Once review and any modifications / removals is completed of that file import using this command. Allows for targeted testing.  
+        #>
+    param (
+        # Path and filename for use by Export
+        [Parameter(Mandatory = $false)]
+        [ValidateScript({ Test-Path -Path $_ -PathType Leaf -IsValid })]
+        [ValidatePattern('\.csv$')]
+        [string]$importCSV = ".\ExportOfUsages.csv"
+    )
+    [array]$script:UsagesList = Import-Csv $importCSV -ErrorAction SilentlyContinue
+    Write-LogMessage -Type Info -Msg "Imported $($script:UsagesList.count) accounts from `"$importCSV`""
+    IF ($global:SuperVerbose) {
+        Write-LogMessage -Type Verbose -Msg "SuperVerbose: Imported Usages: $($script:UsagesList |ConvertTo-Json -Depth 9 -Compress)"
+    }
+}
+#EndRegion '.\Public\Usages\Import-Usageslist.ps1' 22
 #Region '.\Public\Usages\Sync-UsageToPacli.ps1' -1
 
 Function Sync-UsageToPacli {
+
+        <#
+        .SYNOPSIS
+        Using the PSCustomObject array passed, creates the usages in target vault via PACLI
+        .DESCRIPTION
+        Using the PSCustomObject array passed, creates or modifies existing usages in target vault via PACLI
+        Single threaded process
+        Object requires the minimun of the following properties:
+            Name, UsageID, UsageInfo, Safe, Folder, File
+        Any additional properties will be added
+        .NOTES
+        If a usage was deleted, but a version still exists in the safe, the prior version will be restored and then updated.
+        #>
     param(
+        # The object to be processed.
+
         [Parameter(Mandatory = $true, ValueFromPipeline = $true)]
         [PSCustomObject[]]
         $SourceObject,
@@ -1396,7 +1593,10 @@ Function Sync-UsageToPacli {
             }
         } 
 
-        $excludeProp = @("Name", "UsageID", "UsageInfo", "Safe", "Folder", "File")
+        [string[]]$nullProps = ($SourceObject | Get-Member -MemberType NoteProperty | Where-Object { ([String]::IsNullOrEmpty($SourceObject.$($PSItem.Name))) }).Name
+        $SourceObject = $SourceObject | Select-Object -ExcludeProperty $nullProps
+        
+        $excludeProp = @("Name", "UsageID", "UsageInfo", "Safe", "Folder", "File") 
         Write-LogMessage -type Verbose -MSG "Excluding the following properties: $excludeProp"
         $Source = $SourceObject | Select-Object -ExcludeProperty $excludeProp
 
@@ -1468,7 +1668,7 @@ Function Sync-UsageToPacli {
     End {
     }
 }
-#EndRegion '.\Public\Usages\Sync-UsageToPacli.ps1' 99
+#EndRegion '.\Public\Usages\Sync-UsageToPacli.ps1' 117
 #Region '.\Public\Usages\Sync-UsageToPacliPara.ps1' -1
 
 Function Sync-UsageToPacliPara {
