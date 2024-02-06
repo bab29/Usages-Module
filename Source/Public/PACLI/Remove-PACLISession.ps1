@@ -1,4 +1,5 @@
 Function Remove-PACLISession {
+
         <#
         .SYNOPSIS
         Removes active PACLISessions
@@ -16,6 +17,7 @@ Function Remove-PACLISession {
         param (
             [int]$PACLISessionID
         )
+
             Invoke-Expression "`"$global:PACLIApp`" term SESSIONID=$PACLISessionID"
             Write-LogMessage -type Info "PACLI session $PACLISessionID removed successful"
     }
@@ -23,6 +25,7 @@ Function Remove-PACLISession {
     Function RemoveAllSessions {
         $sessions = Get-PACLISessions
         If (![string]::IsNullOrEmpty($sessions)){
+
         $sessions | ForEach-Object { Invoke-PACLICommand -Command "term" -PACLISessionID $PSItem }
         }
         Remove-Variable -Scope Global -Name "PACLISessionID" -ErrorAction SilentlyContinue

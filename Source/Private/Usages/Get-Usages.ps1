@@ -1,5 +1,6 @@
 Function Get-Usages {
     param (
+
         # The URL of the system to get usages from
         # Used when sessions has not been initalized using preferred method of Initialize-Session
         [Parameter(Mandatory = $false)]

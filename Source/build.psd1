@@ -6,6 +6,6 @@
 # -----------------------------------------------------------------------------
 
 @{
-    Path = "Usages-Module.psd1"
+    Path = "EPV-API-Module.psd1"
     VersionedOutputDirectory = $false
 }

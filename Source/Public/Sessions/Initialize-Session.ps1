@@ -1,4 +1,5 @@
 function Initialize-Session {
+
     <#
         .SYNOPSIS
         Connects to the source PVWA
@@ -19,7 +20,6 @@ function Initialize-Session {
         [Parameter(Mandatory = $false)]
         [ValidateSet("cyberark", "ldap", "radius")]
         [String]$AuthType = "cyberark",
-
         #One Time Password for use with RADIUS
         [Parameter(Mandatory = $false)]
         $otp,
@@ -58,6 +58,7 @@ function Initialize-Session {
             return 
         }
     }
+
     New-Variable -Scope script -Name PVWAURL -Value $PVWAURL -Force
     if (Test-Session -sessionToken $script:sessionToken -url $script:PVWAURL) {
         Write-LogMessage -type Info -MSG "Session successfully configured and tested"

@@ -12,6 +12,7 @@ Function Invoke-PACLISafeOpen {
     }
     $Local:PACLISessionID = Get-PACLISessionParameter -PACLISessionID $PACLISessionID
     $PACLICommand = "OPENSAFE SAFE=`"$Safe`" output`(ENCLOSE,NAME,STATUS,SAFEID`)"
+
     Try {
         $result = Invoke-PACLICommand -Command $PACLICommand -PACLISessionID $Local:PACLISessionID
         IF ($Safe -notin $Script:OpenSafeList) {

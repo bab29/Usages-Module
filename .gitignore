@@ -1,6 +1,7 @@
 *CheatSheet*
-icudt58l.dat
-Pacli.exe
+
+Source/Private/PACLI/icudt58l.dat
+Source/Private/PACLI/Pacli.exe
 Logs/*
 IdentityAuth.log
 PACLIOutput
@@ -13,6 +14,8 @@ Source/Private/PACLI/Start-Process-output
 Source/Private/PACLI/Test
 Source/Private/PACLI/test.txt
 .gitkeep
+Source/Public/PACLI/List.txt
 EPV-API-Module.Log
 Pacli.exe
 ExportOfUsages.csv
+

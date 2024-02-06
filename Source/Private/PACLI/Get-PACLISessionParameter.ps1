@@ -1,5 +1,6 @@
 Function Get-PACLISessionParameter {
     param (
+
         # PACLI Session number to use based on the Global PACLISessionID variable
         [Parameter(Mandatory=$false)]
         $PACLISessionID
@@ -10,6 +11,7 @@ Function Get-PACLISessionParameter {
     } elseif ([string]::IsNullOrEmpty($PACLISessionID)) {
         $local:PACLISessionID = $Global:PACLISessionID
         Write-LogMessage -type Debug -Message "PACLISessionID was not provided, using Global PACLISessionID: $local:PACLISessionID"
+
     } elseif ((999 -eq $PACLISessionID)) {
         $local:PACLISessionID = $Global:PACLISessionID
         Write-LogMessage -type Debug -Message "PACLISessionID of 999 provided. Command being requested is Initialize-PACLISession without specific sessionID to be used passed"

@@ -13,6 +13,7 @@ Function Export-Usageslist {
         [ValidateScript({ Test-Path -Path $_ -PathType Leaf -IsValid })]
         [ValidatePattern('\.csv$')]
         $exportCSV = ".\ExportOfUsages.csv",
+
         # URL of PVWA. Must include "/PasswordVault"
         [Parameter(Mandatory = $false)]
         [string]$url = $script:PVWAURL,

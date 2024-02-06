@@ -1,4 +1,5 @@
 Function Invoke-PACLISessionLogon {
+
             <#
         .SYNOPSIS
         Using PACLI logs onto the target vault and set defaults
@@ -21,6 +22,7 @@ Function Invoke-PACLISessionLogon {
         Initialize-PACLISession
     }
     
+
     $Local:PACLISessionID = Get-PACLISessionParameter -PACLISessionID $PACLISessionID
 
     while (($Credentials.password.Length -eq 0) -or [string]::IsNullOrEmpty($Credentials.username)) {
@@ -28,7 +30,6 @@ Function Invoke-PACLISessionLogon {
         If ($null -eq $Credentials) { return
         }
     }
-
     Try {
         Invoke-PACLICommand -Command "define vault=`"PCALI$local:PACLISessionID`" address=`"$vaultIP`"" | Out-Null
         Invoke-PACLICommand -Command "default vault=`"PCALI$local:PACLISessionID`" user=`"$($Credentials.username)`" folder=`"Root`"" | Out-Null
@@ -42,6 +43,7 @@ Function Invoke-PACLISessionLogon {
         }
     } Catch {
         $PSItem.ErrorDetails
+
     }
     [System.Collections.ArrayList]$Script:OpenSafeList = @()
 }

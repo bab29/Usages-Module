@@ -1,4 +1,5 @@
 Function Sync-UsageToPacli {
+
         <#
         .SYNOPSIS
         Using the PSCustomObject array passed, creates the usages in target vault via PACLI
@@ -37,6 +38,7 @@ Function Sync-UsageToPacli {
         ([string]::IsNullOrEmpty($SourceObject.File)) { throw [System.ArgumentNullException]::New("Missing File Name") 
             }
         } 
+
         [string[]]$nullProps = ($SourceObject | Get-Member -MemberType NoteProperty | Where-Object { ([String]::IsNullOrEmpty($SourceObject.$($PSItem.Name))) }).Name
         $SourceObject = $SourceObject | Select-Object -ExcludeProperty $nullProps
         

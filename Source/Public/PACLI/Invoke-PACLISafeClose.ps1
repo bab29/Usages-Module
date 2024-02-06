@@ -10,6 +10,7 @@ Function Invoke-PACLISafeClose {
     $Local:PACLISessionID = Get-PACLISessionParameter -PACLISessionID $PACLISessionID
 
     $PACLICommand = "CLOSESAFE SAFE=`"$Safe`""
+
     Try {
         $result = Invoke-PACLICommand -Command $PACLICommand -PACLISessionID $Local:PACLISessionID
         IF ($Safe -in $Script:OpenSafeList) {

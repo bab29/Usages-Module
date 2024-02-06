@@ -17,6 +17,7 @@ Function Initialize-PACLISession {
         [int]
         $PACLISessionID
     )
+
     If ([string]::IsNullOrEmpty($Global:PACLISessionID) -or (0 -eq $Global:PACLISessionID)) {
         $local:PACLISessionID = $(Get-Random -Minimum 1 -Maximum 100)
         Write-LogMessage -type Debug -Message "No PACLISessionID provided, generated a random ID of $Local:PACLISessionID"
