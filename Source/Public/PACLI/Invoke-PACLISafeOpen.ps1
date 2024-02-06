@@ -26,6 +26,6 @@ Function Invoke-PACLISafeOpen {
         } 
     }
     If (!$Suppress) {
-        $result
+        $result.StandardOutput  | ConvertFrom-Csv -Header "Safe","Open","SafeID" | Format-Table
     }
 }

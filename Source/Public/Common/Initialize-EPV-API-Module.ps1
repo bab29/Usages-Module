@@ -1,10 +1,10 @@
-function Initialize-UsagesModule {
+function Initialize-EPV-API-Module {
     <#
         .SYNOPSIS
         Initializes the Usages Module
         .DESCRIPTION
         Sets the location of PACLI and location to output logs to
-        Default log file name is .\Usage-Module.Log
+        Default log file name is .\EPV-API-Module.Log
     #>
     If ([string]::IsNullOrEmpty($MyInvocation.MyCommand.Path)) {
         $private:ScriptLocation = $pwd.Path
@@ -12,8 +12,9 @@ function Initialize-UsagesModule {
         $private:ScriptFullPath = $MyInvocation.MyCommand.Path
         $private:ScriptLocation = Split-Path -Parent $ScriptFullPath
     }
+    $Global:WaitForExit = $(New-TimeSpan -Minutes 30)
     $private:LOG_DATE = $(Get-Date -Format yyyyMMdd) + "-" + $(Get-Date -Format HHmmss)
-    $script:LOG_FILE_PATH = "$private:ScriptLocation\Usage-Module.Log"
+    $script:LOG_FILE_PATH = "$private:ScriptLocation\EPV-API-Module.Log"
     "Module Loaded at $private:LOG_DATE" | Out-File $script:LOG_FILE_PATH -Append
     $Global:PACLIApp = "$private:ScriptLocation\Pacli.exe"
 }

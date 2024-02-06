@@ -17,8 +17,7 @@ Function Remove-PACLISession {
         param (
             [int]$PACLISessionID
         )
-
-            Invoke-Expression "`"$global:PACLIApp`" term SESSIONID=$PACLISessionID"
+            $null = Invoke-Expression "`"$global:PACLIApp`" term SESSIONID=$PACLISessionID"
             Write-LogMessage -type Info "PACLI session $PACLISessionID removed successful"
     }
 
@@ -34,13 +33,13 @@ Function Remove-PACLISession {
 
     If ($RemoveAllSessions) {
         Write-LogMessage -type Info "Removing all PACLI sessions"
-        RemoveAllSessions
+        $null = RemoveAllSessions
     } Elseif (![string]::IsNullOrEmpty($PACLISessionID)) {
         Write-LogMessage -type Info "Removing provided PACLI session $PACLISessionID"
-        RemoveSession -PACLISessionID $PACLISessionID
+        $null = RemoveSession -PACLISessionID $PACLISessionID
     } Else {
         Write-LogMessage -type Info "Removing global PACLI session $PACLISessionID"
-        RemoveSession -PACLISessionID $Global:PACLISessionID
+        $null = RemoveSession -PACLISessionID $Global:PACLISessionID
         Remove-Variable -Scope Global -Name "PACLISessionID" -ErrorAction SilentlyContinue
     }
 }

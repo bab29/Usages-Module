@@ -8,4 +8,5 @@
 @{
     Path = "EPV-API-Module.psd1"
     VersionedOutputDirectory = $false
+    Target = "CleanBuild"
 }

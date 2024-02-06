@@ -20,7 +20,7 @@ Function Invoke-PACLICommand {
         Test-PACLISession
     }
 
-    IF ($command -notmatch 'SESSIONID=')   {
+    IF ($command -notmatch 'SESSIONID=') {
         $Command = "$command SESSIONID=$PACLISessionID"
         Write-LogMessage -type Debug -Message "No SESSIONID found in the command. Added SESSIONID to end of command"
     }
@@ -29,14 +29,15 @@ Function Invoke-PACLICommand {
     [System.Diagnostics.ProcessStartInfo]$PACLIProcessStartInfo = @{
         FileName               = "$global:PACLIApp"
         Arguments              = $Command
+        UseShellExecute        = $False 
         RedirectStandardOutput = $true
         RedirectStandardError  = $true
-        CreateNoWindow  = $true
+        CreateNoWindow         = $true
     }
     $PACLIProcessObject = New-Object System.Diagnostics.Process
     $PACLIProcessObject.StartInfo = $PACLIProcessStartInfo
     $PACLIProcessObject.Start() | Out-Null
-    $WaitForExit = 60000
+    $WaitForExit = $Global:WaitForExit
     IF ($PACLIProcessObject.WaitForExit($WaitForExit)) {
         [PSCustomObject]$Results = @{
             StandardOutput = $PACLIProcessObject.StandardOutput.ReadToEnd()
@@ -51,6 +52,7 @@ Function Invoke-PACLICommand {
         }
         Return  $Results
     } Else {
-        Throw "PACLI Command has run for greater then 60 seconds"
+        Write-LogMessage -type Debug -Message $($psitem |ConvertTo-Json)
+        Throw "PACLI Command has run for greater then 600 seconds"
     }
 }

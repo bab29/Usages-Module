@@ -444,7 +444,7 @@ Function Invoke-PACLICommand {
         Test-PACLISession
     }
 
-    IF ($command -notmatch 'SESSIONID=')   {
+    IF ($command -notmatch 'SESSIONID=') {
         $Command = "$command SESSIONID=$PACLISessionID"
         Write-LogMessage -type Debug -Message "No SESSIONID found in the command. Added SESSIONID to end of command"
     }
@@ -453,14 +453,15 @@ Function Invoke-PACLICommand {
     [System.Diagnostics.ProcessStartInfo]$PACLIProcessStartInfo = @{
         FileName               = "$global:PACLIApp"
         Arguments              = $Command
+        UseShellExecute        = $False 
         RedirectStandardOutput = $true
         RedirectStandardError  = $true
-        CreateNoWindow  = $true
+        CreateNoWindow         = $true
     }
     $PACLIProcessObject = New-Object System.Diagnostics.Process
     $PACLIProcessObject.StartInfo = $PACLIProcessStartInfo
     $PACLIProcessObject.Start() | Out-Null
-    $WaitForExit = 60000
+    $WaitForExit = $Global:WaitForExit
     IF ($PACLIProcessObject.WaitForExit($WaitForExit)) {
         [PSCustomObject]$Results = @{
             StandardOutput = $PACLIProcessObject.StandardOutput.ReadToEnd()
@@ -475,10 +476,11 @@ Function Invoke-PACLICommand {
         }
         Return  $Results
     } Else {
-        Throw "PACLI Command has run for greater then 60 seconds"
+        Write-LogMessage -type Debug -Message $($psitem |ConvertTo-Json)
+        Throw "PACLI Command has run for greater then 600 seconds"
     }
 }
-#EndRegion '.\Private\PACLI\Invoke-PACLICommand.ps1' 57
+#EndRegion '.\Private\PACLI\Invoke-PACLICommand.ps1' 59
 #Region '.\Private\Session\Get-SessionToken.ps1' -1
 
 
@@ -667,15 +669,15 @@ Function Get-LogFilePAth{
     return $script:LOG_FILE_PATH
 }
 #EndRegion '.\Public\Common\Get-LogFilePath.ps1' 4
-#Region '.\Public\Common\Initialize-EPVAPIModule.ps1' -1
+#Region '.\Public\Common\Initialize-EPV-API-Module.ps1' -1
 
-function Initialize-UsagesModule {
+function Initialize-EPV-API-Module {
     <#
         .SYNOPSIS
         Initializes the Usages Module
         .DESCRIPTION
         Sets the location of PACLI and location to output logs to
-        Default log file name is .\Usage-Module.Log
+        Default log file name is .\EPV-API-Module.Log
     #>
     If ([string]::IsNullOrEmpty($MyInvocation.MyCommand.Path)) {
         $private:ScriptLocation = $pwd.Path
@@ -683,12 +685,13 @@ function Initialize-UsagesModule {
         $private:ScriptFullPath = $MyInvocation.MyCommand.Path
         $private:ScriptLocation = Split-Path -Parent $ScriptFullPath
     }
+    $Global:WaitForExit = $(New-TimeSpan -Minutes 30)
     $private:LOG_DATE = $(Get-Date -Format yyyyMMdd) + "-" + $(Get-Date -Format HHmmss)
-    $script:LOG_FILE_PATH = "$private:ScriptLocation\Usage-Module.Log"
+    $script:LOG_FILE_PATH = "$private:ScriptLocation\EPV-API-Module.Log"
     "Module Loaded at $private:LOG_DATE" | Out-File $script:LOG_FILE_PATH -Append
     $Global:PACLIApp = "$private:ScriptLocation\Pacli.exe"
 }
-#EndRegion '.\Public\Common\Initialize-EPVAPIModule.ps1' 20
+#EndRegion '.\Public\Common\Initialize-EPV-API-Module.ps1' 21
 #Region '.\Public\Common\Set-LogFilePath.ps1' -1
 
 function Set-LogfilePath {
@@ -956,13 +959,11 @@ Function Invoke-PACLIFileFind {
         [ValidateSet("INCLUDE_DELETED_WITH_ACCESSMARKS", "INCLUDE_DELETED", "ONLY_DELETED", "WITHOUT_DELETED")]
         [String]$DelOption = "INCLUDE_DELETED_WITH_ACCESSMARKS"
     )
-
     $Local:PACLISessionID = Get-PACLISessionParameter -PACLISessionID $PACLISessionID
     $PACLIcmdOrdDir = [ordered]@{
-        Safe          = $Safe
-        Folder        = "ROOT"
+        Safe   = $Safe
+        Folder = "ROOT"
     }
-
     $PACLICommand = "FINDFILES $(Format-PACLICommand -cmdOrdDir $PACLIcmdOrdDir) DELETEDOPTION=$DelOption output`(ALL,ENCLOSE`)"
     Try {
         $Result = Invoke-PACLICommand -Command $PACLICommand -PACLISessionID $Local:PACLISessionID
@@ -973,19 +974,20 @@ Function Invoke-PACLIFileFind {
             Throw $PSItem
         }
     }
-
+    if ([string]::IsNullOrEmpty($result.StandardOutput)) {
+        Write-LogMessage -type Info -MSG "No Results found"
+        return ""
+    }
     $headers = @( "Name", "Accessed", "Creation Date", "Created By", "Deletion Date", "Deleted By",
         "Last Used Date", "Last Used By", "Lock Date", "Locked By", "Locked By Gw", "Size", "History", "
     Internalname", "Safe", "Folder", "File ID", "Locked By User Id", "Validation Status", "Human Creation Date",
         "Human Created By", "Human Last Used Date", "Human Last Used By", "Human Last Retrieved By Date", "
     Human Last Retrieved By", "Component Creation Date", "Component Created By", "Component Last Used Date",
         "Component Last Used By", "Component Last Retrieved Date", "Component Last Retrieved By", "File Categories")
-
-    $Cleaned = $Result.StandardOutput | ConvertFrom-Csv -Header $headers
-        
+    $Cleaned = $Result.StandardOutput | ConvertFrom-Csv -Header $headers       
     return [PSCustomObject]$Cleaned
 }
-#EndRegion '.\Public\PACLI\Invoke-PACLIFileFind.ps1' 40
+#EndRegion '.\Public\PACLI\Invoke-PACLIFileFind.ps1' 39
 #Region '.\Public\PACLI\Invoke-PACLIFileList.ps1' -1
 
 Function Invoke-PACLIFileList {
@@ -1017,7 +1019,7 @@ Function Invoke-PACLIFileList {
 #EndRegion '.\Public\PACLI\Invoke-PACLIFileList.ps1' 27
 #Region '.\Public\PACLI\Invoke-PACLIFileUndelete.ps1' -1
 
-Function Invoke-PACLIFileUndelete{
+Function Invoke-PACLIFileUndelete {
     param (
         [Parameter(Mandatory = $true)]
         [string]$Safe,
@@ -1030,23 +1032,25 @@ Function Invoke-PACLIFileUndelete{
     $PACLIcmdOrdDir = [ordered]@{
         Safe   = $Safe
         Folder = "ROOT"
-        File = $file
+        File   = $file
     }
     $PACLICommand = "UNDELETEFILE $(Format-PACLICommand -cmdOrdDir $PACLIcmdOrdDir)"
     Try {
         $Result = Invoke-PACLICommand -Command $PACLICommand -PACLISessionID $Local:PACLISessionID
     } Catch [System.Management.Automation.HaltCommandException] {
-        If ($PSItem.Exception.Data.StandardError -match "ITATS053E Object .* doesn't exist.") { 
+        If ($PSItem.Exception.Data.StandardError -match "ITATS123E .* can not be undeleted because it was not deleted yet.") {
+            Write-LogMessage -type Info -MSG "File found but is not deleted. No Action taken."
+            return ""
+        } elseif ($PSItem.Exception.Data.StandardError -match "ITATS053E Object .* doesn't exist.") { 
             throw [System.IO.FileNotFoundException]::New()
         } else {
             Throw $PSItem
         }
-    
     }
     $Result.StandardOutput | ConvertFrom-Csv -Header Name, Value | ForEach-Object { $PACLIcmdOrdDir.Add($psitem.Name, $psitem.Value) }
     return [PSCustomObject]$PACLIcmdOrdDir 
 }
-#EndRegion '.\Public\PACLI\Invoke-PACLIFileUndelete.ps1' 30
+#EndRegion '.\Public\PACLI\Invoke-PACLIFileUndelete.ps1' 32
 #Region '.\Public\PACLI\Invoke-PACLISafeClose.ps1' -1
 
 Function Invoke-PACLISafeClose {
@@ -1076,10 +1080,14 @@ Function Invoke-PACLISafeClose {
         }
     }
     If (!$Suppress) {
-        $result
+        [PSCustomObject]$output =[PSCustomObject]@{
+            Safe = $safe
+            Open = "No"
+        }
+        $output | ConvertFrom-Csv -Header "Safe","Open" | Format-Table
     }
 }
-#EndRegion '.\Public\PACLI\Invoke-PACLISafeClose.ps1' 31
+#EndRegion '.\Public\PACLI\Invoke-PACLISafeClose.ps1' 35
 #Region '.\Public\PACLI\Invoke-PACLISafeOpen.ps1' -1
 
 Function Invoke-PACLISafeOpen {
@@ -1108,9 +1116,9 @@ Function Invoke-PACLISafeOpen {
             Write-LogMessage -type Error -MSG "Error while opening safe `"$safe`""
             return
         } 
-    
+    }
     If (!$Suppress) {
-        $result
+        $result.StandardOutput  | ConvertFrom-Csv -Header "Safe","Open","SafeID" | Format-Table
     }
 }
 #EndRegion '.\Public\PACLI\Invoke-PACLISafeOpen.ps1' 32
@@ -1244,8 +1252,7 @@ Function Remove-PACLISession {
         param (
             [int]$PACLISessionID
         )
-
-            Invoke-Expression "`"$global:PACLIApp`" term SESSIONID=$PACLISessionID"
+            $null = Invoke-Expression "`"$global:PACLIApp`" term SESSIONID=$PACLISessionID"
             Write-LogMessage -type Info "PACLI session $PACLISessionID removed successful"
     }
 
@@ -1261,17 +1268,17 @@ Function Remove-PACLISession {
 
     If ($RemoveAllSessions) {
         Write-LogMessage -type Info "Removing all PACLI sessions"
-        RemoveAllSessions
+        $null = RemoveAllSessions
     } Elseif (![string]::IsNullOrEmpty($PACLISessionID)) {
         Write-LogMessage -type Info "Removing provided PACLI session $PACLISessionID"
-        RemoveSession -PACLISessionID $PACLISessionID
+        $null = RemoveSession -PACLISessionID $PACLISessionID
     } Else {
         Write-LogMessage -type Info "Removing global PACLI session $PACLISessionID"
-        RemoveSession -PACLISessionID $Global:PACLISessionID
+        $null = RemoveSession -PACLISessionID $Global:PACLISessionID
         Remove-Variable -Scope Global -Name "PACLISessionID" -ErrorAction SilentlyContinue
     }
 }
-#EndRegion '.\Public\PACLI\Remove-PACLISession.ps1' 47
+#EndRegion '.\Public\PACLI\Remove-PACLISession.ps1' 46
 #Region '.\Public\PACLI\Set-PACLISession.ps1' -1
 
 Function Set-PACLISession{
