@@ -1080,11 +1080,11 @@ Function Invoke-PACLISafeClose {
         }
     }
     If (!$Suppress) {
-        [PSCustomObject]$output =[PSCustomObject]@{
+        $output =[PSCustomObject]@{
             Safe = $safe
             Open = "No"
         }
-        $output | ConvertFrom-Csv -Header "Safe","Open" | Format-Table
+        $output | Format-Table
     }
 }
 #EndRegion '.\Public\PACLI\Invoke-PACLISafeClose.ps1' 35
