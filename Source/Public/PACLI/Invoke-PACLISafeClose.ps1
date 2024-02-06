@@ -11,14 +11,17 @@ Function Invoke-PACLISafeClose {
 
     $PACLICommand = "CLOSESAFE SAFE=`"$Safe`""
 
-    $result = Invoke-PACLICommand -Command $PACLICommand -PACLISessionID $Local:PACLISessionID
-    IF ($Safe -in $Script:OpenSafeList) {
-        $Script:OpenSafeList.remove($safe)
-    }
-    If (![string]::IsNullOrEmpty($result.StandardError)) {
-        If ($result.StandardError -notmatch "ITATS023E") {
-            Write-LogMessage -type Error -MSG "Error while closing safe `"$safe`""
-            return
+    Try {
+        $result = Invoke-PACLICommand -Command $PACLICommand -PACLISessionID $Local:PACLISessionID
+        IF ($Safe -in $Script:OpenSafeList) {
+            $Script:OpenSafeList.remove($safe)
+        }
+    } Catch {
+        If (![string]::IsNullOrEmpty($PSItem.Exception.data.StandardError)) {
+            If ($PSItem.Exception.data.StandardError -notmatch "ITATS023E") {
+                Write-LogMessage -type Error -MSG "Error while closing safe `"$safe`""
+                return
+            }
         }
     }
     If (!$Suppress) {

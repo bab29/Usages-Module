@@ -1,15 +1,21 @@
 Function Invoke-PACLIFileCategoryAdd {
     param (
+        # File/Object name of the object
         [Parameter(Mandatory = $true)]
         [string]$Target,
+        # Safe that contains the File/Object
         [Parameter(Mandatory = $true)]
         [string]$Safe,
+        # SessionID to use
         [Parameter(Mandatory = $false)]
         [string]$PACLISessionID,
+        # Category to add
         [Parameter(Mandatory = $true)]
         [string]$Catagory,
+        # Value to add
         [Parameter(Mandatory = $true)]
         [string]$Value,
+        # Suppress results output for successes, errors always returned.
         [Parameter(Mandatory = $false)]
         [switch]$Suppress
 

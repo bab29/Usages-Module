@@ -1,17 +1,27 @@
 Function Get-Usages {
     param (
+
+        # The URL of the system to get usages from
+        # Used when sessions has not been initalized using preferred method of Initialize-Session
         [Parameter(Mandatory = $false)]
         [string]$url = $script:PVWAURL,
+        # Keywords to be added to the search
         [Parameter(Mandatory = $false)]
         [string]$Keywords,
+        # How the results are sorted
         [Parameter(Mandatory = $false)]
         [string]$SortBy,
+        # The safe to be searched
         [Parameter(Mandatory = $false)]
         [string]$SafeName,
+        # Maximum about of records to return 
         [Parameter(Mandatory = $false)]
         [string]$Limit,
+        # Use to limit results to results that starts with
         [Parameter(Mandatory = $false)]
         [boolean]$startswith,
+        # Session Token to be used when not already stored in script variable or to allow for a alternate connection
+        # Used when sessions has not been initalized using preferred method of Initialize-Session
         [Parameter(Mandatory = $false)]
         [hashtable]$sessionToken = $script:sessionToken
 

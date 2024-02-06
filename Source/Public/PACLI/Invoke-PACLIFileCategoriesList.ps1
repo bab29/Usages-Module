@@ -1,9 +1,12 @@
 Function Invoke-PACLIFileCategoriesList {
     param (
+        # File/Object name of the object to get the file catagories from
         [Parameter(Mandatory = $true)]
         [string]$Target,
+        # Safe that contains the File/Object to get values from
         [Parameter(Mandatory = $true)]
         [string]$Safe,
+        # SessionID to use
         [Parameter(Mandatory = $false)]
         [string]$PACLISessionID
     )

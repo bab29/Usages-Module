@@ -1,13 +1,19 @@
 Function Invoke-PACLIFileCategoryDelete {
     param (
+
+        # File/Object name of the object
         [Parameter(Mandatory = $true)]
         [string]$Target,
+        # Safe that contains the File/Object
         [Parameter(Mandatory = $true)]
         [string]$Safe,
+        # SessionID to use
         [Parameter(Mandatory = $false)]
         [string]$PACLISessionID,
+        # Category to delete
         [Parameter(Mandatory = $true)]
         [string]$Catagory,
+        # Suppress results output for successes, errors always returned.
         [Parameter(Mandatory = $false)]
         [switch]$Suppress
     )

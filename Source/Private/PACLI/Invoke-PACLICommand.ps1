@@ -1,12 +1,16 @@
 Function Invoke-PACLICommand {
     param (
+        # Command to be run by PACLI
         [Parameter(Mandatory = $true)]
         [string]$Command,
-        [int]$PACLISessionID = 999,
-        [switch]$testSession
+        #Session number for PACLI to use
+        $PACLISessionID = 999,
+        #Whether to test that PACLI is successfully connecting to the vault prior to running the command
+        [switch]$testSession,
+        [switch]$NoWait
     )
 
-    $commandGUID = [guid]::NewGuid().ToString()
+    $commandGUID = "PACLI-$([guid]::NewGuid().ToString())"
     Write-LogMessage -type Debug -Message "CommandGUID set to the following: $commandGUID"
 
     $Local:PACLISessionID = Get-PACLISessionParameter -PACLISessionID $PACLISessionID
@@ -22,23 +26,31 @@ Function Invoke-PACLICommand {
     }
 
     Write-LogMessage -type Debug -Message "Running the following command: $command"
-    Start-Process -FilePath $($global:PACLIApp) -NoNewWindow -Wait -ArgumentList @($Command) -RedirectStandardOutput "$($commandGUID)-Out" -RedirectStandardError "$commandGUID-Error"
-    $errorFile = Get-Content ".\$commandGUID-Error"
-    Write-LogMessage -type Verbose -Message "Contents of `".\$commandGUID-Error`": $errorFile"
-    $outputFile = Get-Content ".\$commandGUID-Out"
-    Write-LogMessage -type Verbose -Message "Contents of `".\$commandGUID-Out`": $outputFile"
-    [PSCustomObject]$Results = @{
-        StandardOutput = $outputFile
-        StandardError  = $errorFile 
+    [System.Diagnostics.ProcessStartInfo]$PACLIProcessStartInfo = @{
+        FileName               = "$global:PACLIApp"
+        Arguments              = $Command
+        RedirectStandardOutput = $true
+        RedirectStandardError  = $true
+        CreateNoWindow  = $true
     }
-    Remove-Item -Force -Path ".\$commandGUID-Out"
-    Remove-Item -Force -Path ".\$commandGUID-Error"
-    If (![string]::IsNullOrEmpty($Results.StandardError)) {
-        $Excepetion = [System.Management.Automation.HaltCommandException]::New("Error running PACLI command")
-        $Excepetion.Source = $Command
-        $Excepetion.Data.Add("StandardOut",$Results.StandardOutput)
-        $Excepetion.Data.Add("StandardError",$Results.StandardError)
-        Throw $Excepetion
+    $PACLIProcessObject = New-Object System.Diagnostics.Process
+    $PACLIProcessObject.StartInfo = $PACLIProcessStartInfo
+    $PACLIProcessObject.Start() | Out-Null
+    $WaitForExit = 60000
+    IF ($PACLIProcessObject.WaitForExit($WaitForExit)) {
+        [PSCustomObject]$Results = @{
+            StandardOutput = $PACLIProcessObject.StandardOutput.ReadToEnd()
+            StandardError  = $PACLIProcessObject.StandardError.ReadToEnd()
+        }
+        If (![string]::IsNullOrEmpty($Results.StandardError)) {
+            $Excepetion = [System.Management.Automation.HaltCommandException]::New("Error running PACLI command")
+            $Excepetion.Source = $Command
+            $Excepetion.Data.Add("StandardOut", $Results.StandardOutput)
+            $Excepetion.Data.Add("StandardError", $Results.StandardError)
+            Throw $Excepetion
+        }
+        Return  $Results
+    } Else {
+        Throw "PACLI Command has run for greater then 60 seconds"
     }
-    Return  $Results
 }

@@ -1,44 +1,37 @@
 function Initialize-Session {
+
+    <#
+        .SYNOPSIS
+        Connects to the source PVWA
+        .DESCRIPTION
+        Connects to the source PVWA and tests the connection to ensure the supplied credentials/LogonToken are working
+    #>
     [CmdletBinding()]
     param (
-        <#
-    URL for the environment
-    - HTTPS://Destination.lab.local/PasswordVault
-    #>
+        # URL for the environment
+        #- HTTPS://Destination.lab.local/PasswordVault
+    
         [Parameter(Mandatory = $false)]
         [Alias("URL")]
         [String]$PVWAURL,
-
-        <#
-    Authentication types for logon.
-	- Available values: _CyberArk, LDAP, RADIUS_
-	- Default value: _CyberArk_
-    #>
-
+        # Authentication types for logon.
+        # - Available values: _CyberArk, LDAP, RADIUS_
+        # - Default value: _CyberArk_
         [Parameter(Mandatory = $false)]
         [ValidateSet("cyberark", "ldap", "radius")]
         [String]$AuthType = "cyberark",
-
         #One Time Password for use with RADIUS
         [Parameter(Mandatory = $false)]
         $otp,
-
-        <#
-    credentials for source environment
-    #>
+        # Credentials for source environment
         [Parameter(Mandatory = $false)]
         [PSCredential]$PVWACredentials,
-
-        <#
-    Headers for use with environment
-    - Used with Privileged Cloud environment
-    - When used, log off is suppressed in the environment
-    #>
+        # Headers for use with environment
+        # - Used with Privileged Cloud environment
+        # - When used, log off is suppressed in the environment
         [Parameter(Mandatory = $false)]
         $logonToken,
-        <#
-            Use this switch to Disable SSL verification (NOT RECOMMENDED)
-            #>
+        # Use this switch to Disable SSL verification (NOT RECOMMENDED)
         [Parameter(Mandatory = $false)]
         [Switch]$DisableSSLVerify
     )
@@ -65,7 +58,8 @@ function Initialize-Session {
             return 
         }
     }
-    New-Variable -Scope script -Name PVWAURL -Value $PVWAURL -force
+
+    New-Variable -Scope script -Name PVWAURL -Value $PVWAURL -Force
     if (Test-Session -sessionToken $script:sessionToken -url $script:PVWAURL) {
         Write-LogMessage -type Info -MSG "Session successfully configured and tested"
         Write-LogMessage -type Debug -MSG "Token set to $($script:sessionToken |ConvertTo-Json -Depth 10)"
