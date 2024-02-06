@@ -1,4 +1,5 @@
-﻿#Region '.\Private\_Common\Compare-Stuff.ps1' 0
+﻿#Region '.\Private\_Common\Compare-Stuff.ps1' -1
+
 function Compare-Stuff {
     [CmdletBinding()]
     param (
@@ -77,7 +78,8 @@ function Compare-Stuff {
     }
 }
 #EndRegion '.\Private\_Common\Compare-Stuff.ps1' 78
-#Region '.\Private\_Common\Initialize-EPVAPIModule.ps1' 0
+#Region '.\Private\_Common\Initialize-EPVAPIModule.ps1' -1
+
 function Initialize-EPVAPIModule {
 
     If ([string]::IsNullOrEmpty($MyInvocation.MyCommand.Path)) {
@@ -94,7 +96,8 @@ function Initialize-EPVAPIModule {
 
 }
 #EndRegion '.\Private\_Common\Initialize-EPVAPIModule.ps1' 16
-#Region '.\Private\_Common\Initialize-Function.ps1' 0
+#Region '.\Private\_Common\Initialize-Function.ps1' -1
+
 function Initialize-Function {
     [CmdletBinding()]
     param ()
@@ -110,7 +113,8 @@ function Initialize-Function {
     }
 }
 #EndRegion '.\Private\_Common\Initialize-Function.ps1' 15
-#Region '.\Private\_Common\Invoke-Rest.ps1' 0
+#Region '.\Private\_Common\Invoke-Rest.ps1' -1
+
 Function Invoke-Rest {
     <#
 .SYNOPSIS
@@ -195,7 +199,8 @@ Function Invoke-Rest {
     return $restResponse
 }
 #EndRegion '.\Private\_Common\Invoke-Rest.ps1' 84
-#Region '.\Private\_Common\New-SearchCriteria.ps1' 0
+#Region '.\Private\_Common\New-SearchCriteria.ps1' -1
+
 Function New-SearchCriteria {
     param ([string]$sURL, [string]$sSearch, [string]$sSortParam, [string]$sSafeName, [boolean]$startswith, [int]$iLimitPage, [int]$iOffsetPage = 0)
     [string]$retURL = $sURL
@@ -231,7 +236,8 @@ Function New-SearchCriteria {
     return $retURL
 }
 #EndRegion '.\Private\_Common\New-SearchCriteria.ps1' 35
-#Region '.\Private\_Common\Write-LogMessage.ps1' 0
+#Region '.\Private\_Common\Write-LogMessage.ps1' -1
+
 Function Write-LogMessage {
     <#
 .SYNOPSIS
@@ -370,7 +376,8 @@ Function Write-LogMessage {
     }
 }
 #EndRegion '.\Private\_Common\Write-LogMessage.ps1' 138
-#Region '.\Private\PACLI\Format-PACLICommand.ps1' 0
+#Region '.\Private\PACLI\Format-PACLICommand.ps1' -1
+
 Function Format-PACLICommand {
     param (
         [Parameter(Mandatory = $true)]
@@ -385,7 +392,8 @@ Function Format-PACLICommand {
     Return $result
 }
 #EndRegion '.\Private\PACLI\Format-PACLICommand.ps1' 14
-#Region '.\Private\PACLI\Get-PACLISessionParameter.ps1' 0
+#Region '.\Private\PACLI\Get-PACLISessionParameter.ps1' -1
+
 Function Get-PACLISessionParameter {
     param (
         [Parameter(Mandatory=$false)]
@@ -404,7 +412,8 @@ Function Get-PACLISessionParameter {
     Return $local:PACLISessionID
 }
 #EndRegion '.\Private\PACLI\Get-PACLISessionParameter.ps1' 18
-#Region '.\Private\PACLI\Invoke-PACLICommand.ps1' 0
+#Region '.\Private\PACLI\Invoke-PACLICommand.ps1' -1
+
 Function Invoke-PACLICommand {
     param (
         [Parameter(Mandatory = $true)]
@@ -450,7 +459,8 @@ Function Invoke-PACLICommand {
     Return  $Results
 }
 #EndRegion '.\Private\PACLI\Invoke-PACLICommand.ps1' 45
-#Region '.\Private\Session\Get-SessionToken.ps1' 0
+#Region '.\Private\Session\Get-SessionToken.ps1' -1
+
 
 Function Get-SessionToken {
     param(
@@ -492,7 +502,8 @@ Function Get-SessionToken {
     return $sessionToken
 }
 #EndRegion '.\Private\Session\Get-SessionToken.ps1' 41
-#Region '.\Private\Session\Invoke-Logoff.ps1' 0
+#Region '.\Private\Session\Invoke-Logoff.ps1' -1
+
 Function Invoke-Logoff {
     param(
         [Parameter(Mandatory = $false)]
@@ -505,7 +516,8 @@ Function Invoke-Logoff {
     $null = Invoke-Rest -Uri $URL_Logoff -Header $logonHeader -Command "Post"
 }
 #EndRegion '.\Private\Session\Invoke-Logoff.ps1' 12
-#Region '.\Private\Session\Test-PVWA.ps1' 0
+#Region '.\Private\Session\Test-PVWA.ps1' -1
+
 Function Test-PVWA {
     param(
         [Parameter(Mandatory = $true)]
@@ -540,7 +552,8 @@ Function Test-PVWA {
 
 }
 #EndRegion '.\Private\Session\Test-PVWA.ps1' 34
-#Region '.\Private\Usages\Get-Usages.ps1' 0
+#Region '.\Private\Usages\Get-Usages.ps1' -1
+
 Function Get-Usages {
     param (
         [Parameter(Mandatory = $false)]
@@ -618,12 +631,14 @@ Function Get-Usages {
 
 }
 #EndRegion '.\Private\Usages\Get-Usages.ps1' 77
-#Region '.\Public\Common\Get-LogFilePath.ps1' 0
+#Region '.\Public\Common\Get-LogFilePath.ps1' -1
+
 Function Get-LogFilePAth{
     return $script:LOG_FILE_PATH
 }
 #EndRegion '.\Public\Common\Get-LogFilePath.ps1' 4
-#Region '.\Public\Common\Set-LogFilePath.ps1' 0
+#Region '.\Public\Common\Set-LogFilePath.ps1' -1
+
 function Set-LogfilePath {
         param (
         #Sets the logfile path for the module
@@ -638,7 +653,8 @@ function Set-LogfilePath {
     }
 }
 #EndRegion '.\Public\Common\Set-LogFilePath.ps1' 14
-#Region '.\Public\PACLI\Get-PACLISessions.ps1' 0
+#Region '.\Public\PACLI\Get-PACLISessions.ps1' -1
+
 Function Get-PACLISessions {
     Function Private:Get-PACLISession {
         Return $(Get-Process -Name "PACLI" -ErrorAction SilentlyContinue)
@@ -652,7 +668,8 @@ Function Get-PACLISessions {
     }
 }
 #EndRegion '.\Public\PACLI\Get-PACLISessions.ps1' 13
-#Region '.\Public\PACLI\Initialize-PACLISession.ps1' 0
+#Region '.\Public\PACLI\Initialize-PACLISession.ps1' -1
+
 Function Initialize-PACLISession {
 
     [CmdletBinding()]
@@ -697,7 +714,8 @@ Function Initialize-PACLISession {
 
 
 #EndRegion '.\Public\PACLI\Initialize-PACLISession.ps1' 44
-#Region '.\Public\PACLI\Invoke-PACLIFileCategoriesList.ps1' 0
+#Region '.\Public\PACLI\Invoke-PACLIFileCategoriesList.ps1' -1
+
 Function Invoke-PACLIFileCategoriesList {
     param (
         [Parameter(Mandatory = $true)]
@@ -734,7 +752,8 @@ Function Invoke-PACLIFileCategoriesList {
 
 }
 #EndRegion '.\Public\PACLI\Invoke-PACLIFileCategoriesList.ps1' 36
-#Region '.\Public\PACLI\Invoke-PACLIFileCategoryAdd.ps1' 0
+#Region '.\Public\PACLI\Invoke-PACLIFileCategoryAdd.ps1' -1
+
 Function Invoke-PACLIFileCategoryAdd {
     param (
         [Parameter(Mandatory = $true)]
@@ -773,7 +792,8 @@ Function Invoke-PACLIFileCategoryAdd {
 
 }
 #EndRegion '.\Public\PACLI\Invoke-PACLIFileCategoryAdd.ps1' 38
-#Region '.\Public\PACLI\Invoke-PACLIFileCategoryDelete.ps1' 0
+#Region '.\Public\PACLI\Invoke-PACLIFileCategoryDelete.ps1' -1
+
 Function Invoke-PACLIFileCategoryDelete {
     param (
         [Parameter(Mandatory = $true)]
@@ -808,7 +828,8 @@ Function Invoke-PACLIFileCategoryDelete {
     }
 }
 #EndRegion '.\Public\PACLI\Invoke-PACLIFileCategoryDelete.ps1' 34
-#Region '.\Public\PACLI\Invoke-PACLIFileCategoryUpdate.ps1' 0
+#Region '.\Public\PACLI\Invoke-PACLIFileCategoryUpdate.ps1' -1
+
 Function Invoke-PACLIFileCategoryUpdate {
     param (
         [Parameter(Mandatory = $true)]
@@ -846,7 +867,111 @@ Function Invoke-PACLIFileCategoryUpdate {
     }
 }
 #EndRegion '.\Public\PACLI\Invoke-PACLIFileCategoryUpdate.ps1' 37
-#Region '.\Public\PACLI\Invoke-PACLISafeClose.ps1' 0
+#Region '.\Public\PACLI\Invoke-PACLIFileFind.ps1' -1
+
+Function Invoke-PACLIFileFind {
+    param (
+        [Parameter(Mandatory = $true)]
+        [string]$Safe,
+        [Parameter(Mandatory = $false)]
+        [string]$PACLISessionID,
+        [Parameter(Mandatory = $false)]
+        [ValidateSet("INCLUDE_DELETED_WITH_ACCESSMARKS", "INCLUDE_DELETED", "ONLY_DELETED", "WITHOUT_DELETED")]
+        [String]$DelOption = "INCLUDE_DELETED_WITH_ACCESSMARKS"
+    )
+
+    $Local:PACLISessionID = Get-PACLISessionParameter -PACLISessionID $PACLISessionID
+    $PACLIcmdOrdDir = [ordered]@{
+        Safe          = $Safe
+        Folder        = "ROOT"
+    }
+
+    $PACLICommand = "FINDFILES $(Format-PACLICommand -cmdOrdDir $PACLIcmdOrdDir) DELETEDOPTION=$DelOption output`(ALL,ENCLOSE`)"
+    Try {
+        $Result = Invoke-PACLICommand -Command $PACLICommand -PACLISessionID $Local:PACLISessionID
+    } Catch [System.Management.Automation.HaltCommandException] {
+        If ($PSItem.Exception.Data.StandardError -match "ITATS053E Object .* doesn't exist.") { 
+            throw [System.IO.FileNotFoundException]::New()
+        } else {
+            Throw $PSItem
+        }
+    }
+
+    $headers = @( "Name", "Accessed", "Creation Date", "Created By", "Deletion Date", "Deleted By",
+        "Last Used Date", "Last Used By", "Lock Date", "Locked By", "Locked By Gw", "Size", "History", "
+    Internalname", "Safe", "Folder", "File ID", "Locked By User Id", "Validation Status", "Human Creation Date",
+        "Human Created By", "Human Last Used Date", "Human Last Used By", "Human Last Retrieved By Date", "
+    Human Last Retrieved By", "Component Creation Date", "Component Created By", "Component Last Used Date",
+        "Component Last Used By", "Component Last Retrieved Date", "Component Last Retrieved By", "File Categories")
+
+    $Cleaned = $Result.StandardOutput | ConvertFrom-Csv -Header $headers
+        
+    return [PSCustomObject]$Cleaned
+}
+#EndRegion '.\Public\PACLI\Invoke-PACLIFileFind.ps1' 40
+#Region '.\Public\PACLI\Invoke-PACLIFileList.ps1' -1
+
+Function Invoke-PACLIFileList {
+    param (
+        [Parameter(Mandatory = $true)]
+        [string]$Safe,
+        [Parameter(Mandatory = $false)]
+        [string]$PACLISessionID
+    )
+    $Local:PACLISessionID = Get-PACLISessionParameter -PACLISessionID $PACLISessionID
+    $PACLIcmdOrdDir = [ordered]@{
+        Safe   = $Safe
+        Folder = "ROOT"
+    }
+    $PACLICommand = "FILESLIST $(Format-PACLICommand -cmdOrdDir $PACLIcmdOrdDir) output`(ALL,ENCLOSE`)"
+    Try {
+        $Result = Invoke-PACLICommand -Command $PACLICommand -PACLISessionID $Local:PACLISessionID
+    } Catch [System.Management.Automation.HaltCommandException] {
+        If ($PSItem.Exception.Data.StandardError -match "ITATS053E Object .* doesn't exist.") { 
+            throw [System.IO.FileNotFoundException]::New()
+        } else {
+            Throw $PSItem
+        }
+    
+    }
+    $Result.StandardOutput | ConvertFrom-Csv -Header Name, Value | ForEach-Object { $PACLIcmdOrdDir.Add($psitem.Name, $psitem.Value) }
+    return [PSCustomObject]$PACLIcmdOrdDir 
+}
+#EndRegion '.\Public\PACLI\Invoke-PACLIFileList.ps1' 27
+#Region '.\Public\PACLI\Invoke-PACLIFileUndelete.ps1' -1
+
+Function Invoke-PACLIFileUndelete{
+    param (
+        [Parameter(Mandatory = $true)]
+        [string]$Safe,
+        [Parameter(Mandatory = $true)]
+        [string]$File,
+        [Parameter(Mandatory = $false)]
+        [string]$PACLISessionID
+    )
+    $Local:PACLISessionID = Get-PACLISessionParameter -PACLISessionID $PACLISessionID
+    $PACLIcmdOrdDir = [ordered]@{
+        Safe   = $Safe
+        Folder = "ROOT"
+        File = $file
+    }
+    $PACLICommand = "UNDELETEFILE $(Format-PACLICommand -cmdOrdDir $PACLIcmdOrdDir)"
+    Try {
+        $Result = Invoke-PACLICommand -Command $PACLICommand -PACLISessionID $Local:PACLISessionID
+    } Catch [System.Management.Automation.HaltCommandException] {
+        If ($PSItem.Exception.Data.StandardError -match "ITATS053E Object .* doesn't exist.") { 
+            throw [System.IO.FileNotFoundException]::New()
+        } else {
+            Throw $PSItem
+        }
+    
+    }
+    $Result.StandardOutput | ConvertFrom-Csv -Header Name, Value | ForEach-Object { $PACLIcmdOrdDir.Add($psitem.Name, $psitem.Value) }
+    return [PSCustomObject]$PACLIcmdOrdDir 
+}
+#EndRegion '.\Public\PACLI\Invoke-PACLIFileUndelete.ps1' 30
+#Region '.\Public\PACLI\Invoke-PACLISafeClose.ps1' -1
+
 Function Invoke-PACLISafeClose {
     param (
         [Parameter(Mandatory = $true)]
@@ -875,7 +1000,8 @@ Function Invoke-PACLISafeClose {
     }
 }
 #EndRegion '.\Public\PACLI\Invoke-PACLISafeClose.ps1' 28
-#Region '.\Public\PACLI\Invoke-PACLISafeOpen.ps1' 0
+#Region '.\Public\PACLI\Invoke-PACLISafeOpen.ps1' -1
+
 Function Invoke-PACLISafeOpen {
     param (
         [Parameter(Mandatory = $true)]
@@ -903,7 +1029,8 @@ Function Invoke-PACLISafeOpen {
     }
 }
 #EndRegion '.\Public\PACLI\Invoke-PACLISafeOpen.ps1' 27
-#Region '.\Public\PACLI\Invoke-PACLISessionLogon.ps1' 0
+#Region '.\Public\PACLI\Invoke-PACLISessionLogon.ps1' -1
+
 Function Invoke-PACLISessionLogon {
     param (
         [Parameter(Mandatory = $true)]
@@ -938,7 +1065,8 @@ Function Invoke-PACLISessionLogon {
     [System.Collections.ArrayList]$Script:OpenSafeList = @()
 }
 #EndRegion '.\Public\PACLI\Invoke-PACLISessionLogon.ps1' 34
-#Region '.\Public\PACLI\Invoke-PACLIStorePasswordObject.ps1' 0
+#Region '.\Public\PACLI\Invoke-PACLIStorePasswordObject.ps1' -1
+
 Function Invoke-PACLIStorePasswordObject {
     param (
         [Parameter(Mandatory = $true)]
@@ -972,7 +1100,8 @@ Function Invoke-PACLIStorePasswordObject {
 
 }
 #EndRegion '.\Public\PACLI\Invoke-PACLIStorePasswordObject.ps1' 33
-#Region '.\Public\PACLI\Remove-PACLISession.ps1' 0
+#Region '.\Public\PACLI\Remove-PACLISession.ps1' -1
+
 Function Remove-PACLISession {
     param (
         [int]$PACLISessionID,
@@ -1008,7 +1137,8 @@ Function Remove-PACLISession {
     }
 }
 #EndRegion '.\Public\PACLI\Remove-PACLISession.ps1' 35
-#Region '.\Public\PACLI\Set-PACLISession.ps1' 0
+#Region '.\Public\PACLI\Set-PACLISession.ps1' -1
+
 Function Set-PACLISession{
     param (
         [Parameter()]
@@ -1018,7 +1148,8 @@ Function Set-PACLISession{
     $Global:PACLISessionID = $PACLISessionID
 }
 #EndRegion '.\Public\PACLI\Set-PACLISession.ps1' 9
-#Region '.\Public\PACLI\Test-PACLISession.ps1' 0
+#Region '.\Public\PACLI\Test-PACLISession.ps1' -1
+
 Function Test-PACLISession {
     param (
         [int]$PACLISessionID
@@ -1039,13 +1170,15 @@ Function Test-PACLISession {
     }
 }
 #EndRegion '.\Public\PACLI\Test-PACLISession.ps1' 20
-#Region '.\Public\Sessions\Close-Session.ps1' 0
+#Region '.\Public\Sessions\Close-Session.ps1' -1
+
 Function Close-Session {
     Initialize-Function
     Invoke-Logoff -url $PVWAURL -logonHeader $Token -ErrorAction SilentlyContinue
 }
 #EndRegion '.\Public\Sessions\Close-Session.ps1' 5
-#Region '.\Public\Sessions\Initialize-Session.ps1' 0
+#Region '.\Public\Sessions\Initialize-Session.ps1' -1
+
 function Initialize-Session {
     [CmdletBinding()]
     param (
@@ -1122,7 +1255,8 @@ function Initialize-Session {
     }
 }
 #EndRegion '.\Public\Sessions\Initialize-Session.ps1' 76
-#Region '.\Public\Sessions\Test-Session.ps1' 0
+#Region '.\Public\Sessions\Test-Session.ps1' -1
+
 Function Test-Session {
     [OutputType([System.Boolean])]
     [CmdletBinding()]
@@ -1163,12 +1297,14 @@ Function Test-Session {
     }
 }
 #EndRegion '.\Public\Sessions\Test-Session.ps1' 40
-#Region '.\Public\Usages\Clear-Usagelist.ps1' 0
+#Region '.\Public\Usages\Clear-Usagelist.ps1' -1
+
 Function Clear-Usagelist {
     Remove-Variable -Scope Script -Name UsageList -ErrorAction SilentlyContinue
 }
 #EndRegion '.\Public\Usages\Clear-Usagelist.ps1' 4
-#Region '.\Public\Usages\Export-Usageslist.ps1' 0
+#Region '.\Public\Usages\Export-Usageslist.ps1' -1
+
 Function Export-Usageslist {
     param (
         [Parameter(Mandatory = $false)]
@@ -1207,12 +1343,14 @@ Function Export-Usageslist {
     New-Variable -Force -Scope Script -Name UsagesList -Value $usages
 }
 #EndRegion '.\Public\Usages\Export-Usageslist.ps1' 38
-#Region '.\Public\Usages\Get-Usageslist.ps1' 0
+#Region '.\Public\Usages\Get-Usageslist.ps1' -1
+
 Function Get-Usageslist {
     return $script:UsagesList
 }
 #EndRegion '.\Public\Usages\Get-Usageslist.ps1' 4
-#Region '.\Public\Usages\Import-Usages.ps1' 0
+#Region '.\Public\Usages\Import-Usages.ps1' -1
+
 Function Import-Usagelist {
     param (
         <#
@@ -1230,7 +1368,8 @@ Function Import-Usagelist {
     }
 }
 #EndRegion '.\Public\Usages\Import-Usages.ps1' 17
-#Region '.\Public\Usages\Sync-UsageToPacli.ps1' 0
+#Region '.\Public\Usages\Sync-UsageToPacli.ps1' -1
+
 Function Sync-UsageToPacli {
     param(
         [Parameter(Mandatory = $true, ValueFromPipeline = $true)]
@@ -1330,7 +1469,8 @@ Function Sync-UsageToPacli {
     }
 }
 #EndRegion '.\Public\Usages\Sync-UsageToPacli.ps1' 99
-#Region '.\Public\Usages\Sync-UsageToPacliPara.ps1' 0
+#Region '.\Public\Usages\Sync-UsageToPacliPara.ps1' -1
+
 Function Sync-UsageToPacliPara {
     param(
         [Parameter(Mandatory = $true, ValueFromPipeline = $true)]
