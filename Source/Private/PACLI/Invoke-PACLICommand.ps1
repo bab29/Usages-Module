@@ -50,7 +50,6 @@ Function Invoke-PACLICommand {
                 $Excepetion.Source = $Command
                 $Excepetion.Data.Add("StandardOut", $Results.StandardOutput)
                 $Excepetion.Data.Add("StandardError", $Results.StandardError)
-                $PACLIProcessObject.Dispose()
                 Throw $Excepetion
             }
             Return  $Results

@@ -474,7 +474,6 @@ Function Invoke-PACLICommand {
                 $Excepetion.Source = $Command
                 $Excepetion.Data.Add("StandardOut", $Results.StandardOutput)
                 $Excepetion.Data.Add("StandardError", $Results.StandardError)
-                $PACLIProcessObject.Dispose()
                 Throw $Excepetion
             }
             Return  $Results
@@ -485,7 +484,7 @@ Function Invoke-PACLICommand {
         $PACLIProcessObject.Dispose()
     }
 }
-#EndRegion '.\Private\PACLI\Invoke-PACLICommand.ps1' 64
+#EndRegion '.\Private\PACLI\Invoke-PACLICommand.ps1' 63
 #Region '.\Private\Session\Get-SessionToken.ps1' -1
 
 
