@@ -32,57 +32,32 @@ Function Invoke-PACLICommand {
         UseShellExecute        = $False 
         RedirectStandardOutput = $true
         RedirectStandardError  = $true
-        CreateNoWindow         = $true
+        CreateNoWindow         = $false
     }
-    $PACLIProcessObject = New-Object System.Diagnostics.Process
-    $PACLIProcessObject.StartInfo = $PACLIProcessStartInfo
-    $PACLIProcessObject.Start() | Out-Null
-
-    $WaitForExit = $Global:WaitForExit
-
-
-    $Count = 0
-    While (!$PACLIProcessObject.HasExited) {
-        Write-LogMessage -type Info -Msg "PACLI Still running..."
-        Write-LogMessage -type Debug -Message $($PACLIProcessObject | ConvertTo-Json)
-        Start-Sleep -Seconds 30
-        $count += 1
-        IF (60 -lt $count) {
-            Write-LogMessage -type Debug -Message $($PACLIProcessObject | ConvertTo-Json)
+    Try {
+        $PACLIProcessObject = New-Object System.Diagnostics.Process
+        $PACLIProcessObject.StartInfo = $PACLIProcessStartInfo
+        $PACLIProcessObject.Start() | Out-Null    
+        [PSCustomObject]$Results = @{
+            ExitCode = $PACLIProcessObject.ExitCode
+            StandardOutput = $PACLIProcessObject.StandardOutput.ReadToEnd()
+            StandardError  = $PACLIProcessObject.StandardError.ReadToEnd()
+        }
+        $WaitForExit = $Global:WaitForExit
+        IF ($PACLIProcessObject.WaitForExit($WaitForExit)) {
+            If (![string]::IsNullOrEmpty($Results.StandardError)) {
+                $Excepetion = [System.Management.Automation.HaltCommandException]::New("Error running PACLI command")
+                $Excepetion.Source = $Command
+                $Excepetion.Data.Add("StandardOut", $Results.StandardOutput)
+                $Excepetion.Data.Add("StandardError", $Results.StandardError)
+                $PACLIProcessObject.Dispose()
+                Throw $Excepetion
+            }
+            Return  $Results
+        } Else {
             Throw "PACLI Command has run for greater then 600 seconds"
         }
+    } finally {
+        $PACLIProcessObject.Dispose()
     }
-    [PSCustomObject]$Results = @{
-        StandardOutput = $PACLIProcessObject.StandardOutput.ReadToEnd()
-        StandardError  = $PACLIProcessObject.StandardError.ReadToEnd()
-    }
-    If (![string]::IsNullOrEmpty($Results.StandardError)) {
-        $Excepetion = [System.Management.Automation.HaltCommandException]::New("Error running PACLI command")
-        $Excepetion.Source = $Command
-        $Excepetion.Data.Add("StandardOut", $Results.StandardOutput)
-        $Excepetion.Data.Add("StandardError", $Results.StandardError)
-        Throw $Excepetion
-    }
-    Return  $Results
 }
-
-<# 
-
-IF ($PACLIProcessObject.WaitForExit($WaitForExit)) {
-    [PSCustomObject]$Results = @{
-        StandardOutput = $PACLIProcessObject.StandardOutput.ReadToEnd()
-        StandardError  = $PACLIProcessObject.StandardError.ReadToEnd()
-    }
-    If (![string]::IsNullOrEmpty($Results.StandardError)) {
-        $Excepetion = [System.Management.Automation.HaltCommandException]::New("Error running PACLI command")
-        $Excepetion.Source = $Command
-        $Excepetion.Data.Add("StandardOut", $Results.StandardOutput)
-        $Excepetion.Data.Add("StandardError", $Results.StandardError)
-        Throw $Excepetion
-    }
-    Return  $Results
-} Else {
-    Write-LogMessage -type Debug -Message $($psitem | ConvertTo-Json)
-    Throw "PACLI Command has run for greater then 600 seconds"
-}
- #>

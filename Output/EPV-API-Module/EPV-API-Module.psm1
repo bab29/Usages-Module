@@ -456,61 +456,36 @@ Function Invoke-PACLICommand {
         UseShellExecute        = $False 
         RedirectStandardOutput = $true
         RedirectStandardError  = $true
-        CreateNoWindow         = $true
+        CreateNoWindow         = $false
     }
-    $PACLIProcessObject = New-Object System.Diagnostics.Process
-    $PACLIProcessObject.StartInfo = $PACLIProcessStartInfo
-    $PACLIProcessObject.Start() | Out-Null
-
-    $WaitForExit = $Global:WaitForExit
-
-
-    $Count = 0
-    While (!$PACLIProcessObject.HasExited) {
-        Write-LogMessage -type Info -Msg "PACLI Still running..."
-        Write-LogMessage -type Debug -Message $($PACLIProcessObject | ConvertTo-Json)
-        Start-Sleep -Seconds 30
-        $count += 1
-        IF (60 -lt $count) {
-            Write-LogMessage -type Debug -Message $($PACLIProcessObject | ConvertTo-Json)
+    Try {
+        $PACLIProcessObject = New-Object System.Diagnostics.Process
+        $PACLIProcessObject.StartInfo = $PACLIProcessStartInfo
+        $PACLIProcessObject.Start() | Out-Null    
+        [PSCustomObject]$Results = @{
+            ExitCode = $PACLIProcessObject.ExitCode
+            StandardOutput = $PACLIProcessObject.StandardOutput.ReadToEnd()
+            StandardError  = $PACLIProcessObject.StandardError.ReadToEnd()
+        }
+        $WaitForExit = $Global:WaitForExit
+        IF ($PACLIProcessObject.WaitForExit($WaitForExit)) {
+            If (![string]::IsNullOrEmpty($Results.StandardError)) {
+                $Excepetion = [System.Management.Automation.HaltCommandException]::New("Error running PACLI command")
+                $Excepetion.Source = $Command
+                $Excepetion.Data.Add("StandardOut", $Results.StandardOutput)
+                $Excepetion.Data.Add("StandardError", $Results.StandardError)
+                $PACLIProcessObject.Dispose()
+                Throw $Excepetion
+            }
+            Return  $Results
+        } Else {
             Throw "PACLI Command has run for greater then 600 seconds"
         }
+    } finally {
+        $PACLIProcessObject.Dispose()
     }
-    [PSCustomObject]$Results = @{
-        StandardOutput = $PACLIProcessObject.StandardOutput.ReadToEnd()
-        StandardError  = $PACLIProcessObject.StandardError.ReadToEnd()
-    }
-    If (![string]::IsNullOrEmpty($Results.StandardError)) {
-        $Excepetion = [System.Management.Automation.HaltCommandException]::New("Error running PACLI command")
-        $Excepetion.Source = $Command
-        $Excepetion.Data.Add("StandardOut", $Results.StandardOutput)
-        $Excepetion.Data.Add("StandardError", $Results.StandardError)
-        Throw $Excepetion
-    }
-    Return  $Results
 }
-
-<# 
-
-IF ($PACLIProcessObject.WaitForExit($WaitForExit)) {
-    [PSCustomObject]$Results = @{
-        StandardOutput = $PACLIProcessObject.StandardOutput.ReadToEnd()
-        StandardError  = $PACLIProcessObject.StandardError.ReadToEnd()
-    }
-    If (![string]::IsNullOrEmpty($Results.StandardError)) {
-        $Excepetion = [System.Management.Automation.HaltCommandException]::New("Error running PACLI command")
-        $Excepetion.Source = $Command
-        $Excepetion.Data.Add("StandardOut", $Results.StandardOutput)
-        $Excepetion.Data.Add("StandardError", $Results.StandardError)
-        Throw $Excepetion
-    }
-    Return  $Results
-} Else {
-    Write-LogMessage -type Debug -Message $($psitem | ConvertTo-Json)
-    Throw "PACLI Command has run for greater then 600 seconds"
-}
- #>
-#EndRegion '.\Private\PACLI\Invoke-PACLICommand.ps1' 89
+#EndRegion '.\Private\PACLI\Invoke-PACLICommand.ps1' 64
 #Region '.\Private\Session\Get-SessionToken.ps1' -1
 
 
@@ -978,6 +953,38 @@ Function Invoke-PACLIFileCategoryUpdate {
     }
 }
 #EndRegion '.\Public\PACLI\Invoke-PACLIFileCategoryUpdate.ps1' 37
+#Region '.\Public\PACLI\Invoke-PACLIFileDelete.ps1' -1
+
+Function Invoke-PACLIFileDelete {
+    param (
+        [Parameter(Mandatory = $true)]
+        [string]$Safe,
+        [Parameter(Mandatory = $true)]
+        [string]$File,
+        [Parameter(Mandatory = $false)]
+        [string]$PACLISessionID
+    )
+    $Local:PACLISessionID = Get-PACLISessionParameter -PACLISessionID $PACLISessionID
+    $PACLIcmdOrdDir = [ordered]@{
+        Safe   = $Safe
+        Folder = "ROOT"
+        File   = $file
+    }
+    $PACLICommand = "DELETEFILE $(Format-PACLICommand -cmdOrdDir $PACLIcmdOrdDir)"
+    Try {
+        $Result = Invoke-PACLICommand -Command $PACLICommand -PACLISessionID $Local:PACLISessionID
+    } Catch [System.Management.Automation.HaltCommandException] {
+        If ($PSItem.Exception.Data.StandardError -match "ITATS053E Object .* doesn't exist.") { 
+            throw [System.IO.FileNotFoundException]::New()
+        } else {
+            Throw $PSItem
+        }
+    }
+    $PACLIcmdOrdDir.Add("Status", "Deleted")
+    $Result.StandardOutput | ConvertFrom-Csv -Header Name, Value| ForEach-Object { $PACLIcmdOrdDir.Add($psitem.Name, $psitem.Value, "Deleted") }
+    return [PSCustomObject]$PACLIcmdOrdDir 
+}
+#EndRegion '.\Public\PACLI\Invoke-PACLIFileDelete.ps1' 30
 #Region '.\Public\PACLI\Invoke-PACLIFileFind.ps1' -1
 
 Function Invoke-PACLIFileFind {
@@ -1078,10 +1085,11 @@ Function Invoke-PACLIFileUndelete {
             Throw $PSItem
         }
     }
-    $Result.StandardOutput | ConvertFrom-Csv -Header Name, Value | ForEach-Object { $PACLIcmdOrdDir.Add($psitem.Name, $psitem.Value) }
+    $PACLIcmdOrdDir.Add("Status", "Undeleted")
+    $Result.StandardOutput | ConvertFrom-Csv -Header Name, Value, Status | ForEach-Object { $PACLIcmdOrdDir.Add($psitem.Name, $psitem.Value,"Undeleted") }
     return [PSCustomObject]$PACLIcmdOrdDir 
 }
-#EndRegion '.\Public\PACLI\Invoke-PACLIFileUndelete.ps1' 32
+#EndRegion '.\Public\PACLI\Invoke-PACLIFileUndelete.ps1' 33
 #Region '.\Public\PACLI\Invoke-PACLISafeClose.ps1' -1
 
 Function Invoke-PACLISafeClose {

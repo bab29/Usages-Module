@@ -14,6 +14,10 @@ Initialize-PACLISession
 Invoke-PACLISessionLogon -vaultIP "192.168.239.30" -Credentials $cred
 #Undelete Tests
 Invoke-PACLISafeOpen -safe BABPERMTEST
+$deltest = Invoke-PACLIFileFind -safe BABPERMTEST -DelOption WITHOUT_DELETED
+if (![string]::IsNullOrEmpty($deltest)) {
+    $deltest | ForEach-Object { Invoke-PACLIFileDelete -safe $($PSItem.Safe) -file $($PSItem.Name) }
+}
 $deltest = Invoke-PACLIFileFind -safe BABPERMTEST -DelOption ONLY_DELETED
 if (![string]::IsNullOrEmpty($deltest)) {
     $deltest | ForEach-Object { Invoke-PACLIFileUndelete -safe $($PSItem.Safe) -file $($PSItem.Name) }
