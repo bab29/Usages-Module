@@ -28,11 +28,11 @@ function Compare-Stuff {
                 Compare-Stuff $ReferenceObject[$i] $DifferenceObject[$i] -__Property ($__Property + "[$i]") -__Depth $__Depth -IncludeEqual:$IncludeEqual -ExcludeDifferent:$ExcludeDifferent -PassThru:$PassThru -Compact:$Compact -namesOnly:$namesOnly
             }
         }
-        #check for custom classes or PSCutomObjects and iterate over their properties.
+        #check for custom classes or PSCustomObjects and iterate over their properties.
         elseif ($ReferenceObject -is [PSCustomObject] -or $null -eq $ReferenceObject.GetType().Namespace) {
             $__Depth++
             foreach ($prop in $ReferenceObject.PSObject.properties.name) {
-                #build up the property name hiarachry
+                #build up the property name hierarchy
                 $newProp = $prop
                 if ($__Property) {
                     $newProp = $__Property + '.' + $prop
@@ -78,24 +78,6 @@ function Compare-Stuff {
     }
 }
 #EndRegion '.\Private\_Common\Compare-Stuff.ps1' 78
-#Region '.\Private\_Common\Initialize-EPVAPIModule.ps1' -1
-
-function Initialize-EPVAPIModule {
-
-    If ([string]::IsNullOrEmpty($MyInvocation.MyCommand.Path)) {
-        $private:ScriptLocation = $pwd.Path
-    } else {
-        $private:ScriptFullPath = $MyInvocation.MyCommand.Path
-        $private:ScriptLocation = Split-Path -Parent $ScriptFullPath
-    }
-    $private:LOG_DATE = $(Get-Date -Format yyyyMMdd) + "-" + $(Get-Date -Format HHmmss)
-    $script:LOG_FILE_PATH = "$private:ScriptLocation\EPV-API-Module.Log"
-    "Module Loaded at $private:LOG_DATE" | Out-File $script:LOG_FILE_PATH -Append
-    $Global:PACLIApp = "$private:ScriptLocation\Pacli.exe"
-
-
-}
-#EndRegion '.\Private\_Common\Initialize-EPVAPIModule.ps1' 16
 #Region '.\Private\_Common\Initialize-Function.ps1' -1
 
 function Initialize-Function {
@@ -612,7 +594,6 @@ Function Get-Usages {
     if ([string]::IsNullOrEmpty($sessionToken)) {
         Write-LogMessage -type Error -MSG "No sessionToken set, run Initialize-Session first"
         Throw [System.Management.Automation.SessionStateException]::New("No sessionToken set, run Initialize-Session first")
-       
     }
     Write-LogMessage -Type Debug -Msg "Retrieving Usages..."
 
@@ -689,7 +670,7 @@ function Initialize-EPVAPIModule {
         $private:ScriptFullPath = $MyInvocation.MyCommand.Path
         $private:ScriptLocation = Split-Path -Parent $ScriptFullPath
     }
-    $Global:WaitForExit = $(New-TimeSpan -Minutes 30)
+    #$Global:WaitForExit = $(New-TimeSpan -Minutes 30)
     $Global:WaitForExit = 1800000
     $private:LOG_DATE = $(Get-Date -Format yyyyMMdd) + "-" + $(Get-Date -Format HHmmss)
     $script:LOG_FILE_PATH = "$private:ScriptLocation\EPV-API-Module.Log"
@@ -1105,7 +1086,7 @@ Function Invoke-PACLISafeClose {
     $PACLICommand = "CLOSESAFE SAFE=`"$Safe`""
 
     Try {
-        $result = Invoke-PACLICommand -Command $PACLICommand -PACLISessionID $Local:PACLISessionID
+        $null = Invoke-PACLICommand -Command $PACLICommand -PACLISessionID $Local:PACLISessionID
         IF ($Safe -in $Script:OpenSafeList) {
             $Script:OpenSafeList.remove($safe)
         }
@@ -1598,8 +1579,8 @@ Function Import-Usageslist {
 #Region '.\Public\Usages\Sync-UsageToPacli.ps1' -1
 
 Function Sync-UsageToPacli {
-
-        <#
+    [CmdletBinding()]
+    <#
         .SYNOPSIS
         Using the PSCustomObject array passed, creates the usages in target vault via PACLI
         .DESCRIPTION
