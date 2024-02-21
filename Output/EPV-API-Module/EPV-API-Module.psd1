@@ -57,7 +57,7 @@ Description = 'Module for use with CyberArk PAS and PCloud to automate privilege
 # RequiredAssemblies = @()
 
 # Script files (.ps1) that are run in the caller's environment prior to importing this module.
-#ScriptsToProcess = @()
+# ScriptsToProcess = @()
 
 # Type files (.ps1xml) to be loaded when importing this module
 # TypesToProcess = @()
@@ -69,7 +69,7 @@ Description = 'Module for use with CyberArk PAS and PCloud to automate privilege
 # NestedModules = @()
 
 # Functions to export from this module, for best performance, do not use wildcards and do not delete the entry, use an empty array if there are no functions to export.
-FunctionsToExport = @('Get-LogFilePath','Initialize-EPVAPIModule','Set-LogFilePath','Get-PACLISessions','Initialize-PACLISession','Invoke-PACLIFileCategoriesList','Invoke-PACLIFileCategoryAdd','Invoke-PACLIFileCategoryDelete','Invoke-PACLIFileCategoryUpdate','Invoke-PACLIFileFind','Invoke-PACLIFileList','Invoke-PACLIFileUndelete','Invoke-PACLISafeClose','Invoke-PACLISafeOpen','Invoke-PACLISessionLogoff','Invoke-PACLISessionLogon','Invoke-PACLIStorePasswordObject','Remove-PACLISession','Set-PACLISession','Test-PACLISession','Close-Session','Initialize-Session','Test-Session','Clear-Usagelist','Export-Usageslist','Get-Usageslist','Import-Usages','Import-Usageslist','Sync-UsageToPacli','Sync-UsageToPacliPara')
+FunctionsToExport = @('Get-LogFilePath','Initialize-EPVAPIModule','Set-LogFilePath','Get-PACLISessions','Initialize-PACLISession','Invoke-PACLIFileCategoriesList','Invoke-PACLIFileCategoryAdd','Invoke-PACLIFileCategoryDelete','Invoke-PACLIFileCategoryUpdate','Invoke-PACLIFileDelete','Invoke-PACLIFileFind','Invoke-PACLIFileList','Invoke-PACLIFileUndelete','Invoke-PACLISafeClose','Invoke-PACLISafeOpen','Invoke-PACLISessionLogoff','Invoke-PACLISessionLogon','Invoke-PACLIStorePasswordObject','Remove-PACLISession','Set-PACLISession','Test-PACLISession','Close-Session','Initialize-Session','Test-Session','Clear-Usagelist','Export-Usageslist','Get-Usageslist','Import-Usages','Import-Usageslist','Sync-UsageToPacli','Sync-UsageToPacliPara')
 
 # Cmdlets to export from this module, for best performance, do not use wildcards and do not delete the entry, use an empty array if there are no cmdlets to export.
 CmdletsToExport = @()

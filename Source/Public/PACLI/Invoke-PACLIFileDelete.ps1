@@ -1,4 +1,4 @@
-Function Invoke-PACLIFileUndelete {
+Function Invoke-PACLIFileDelete {
     param (
         [Parameter(Mandatory = $true)]
         [string]$Safe,
@@ -13,20 +13,17 @@ Function Invoke-PACLIFileUndelete {
         Folder = "ROOT"
         File   = $file
     }
-    $PACLICommand = "UNDELETEFILE $(Format-PACLICommand -cmdOrdDir $PACLIcmdOrdDir)"
+    $PACLICommand = "DELETEFILE $(Format-PACLICommand -cmdOrdDir $PACLIcmdOrdDir)"
     Try {
         $Result = Invoke-PACLICommand -Command $PACLICommand -PACLISessionID $Local:PACLISessionID
     } Catch [System.Management.Automation.HaltCommandException] {
-        If ($PSItem.Exception.Data.StandardError -match "ITATS123E .* can not be undeleted because it was not deleted yet.") {
-            Write-LogMessage -type Info -MSG "File found but is not deleted. No Action taken."
-            return ""
-        } elseif ($PSItem.Exception.Data.StandardError -match "ITATS053E Object .* doesn't exist.") { 
+        If ($PSItem.Exception.Data.StandardError -match "ITATS053E Object .* doesn't exist.") { 
             throw [System.IO.FileNotFoundException]::New()
         } else {
             Throw $PSItem
         }
     }
-    $PACLIcmdOrdDir.Add("Status", "Undeleted")
-    $Result.StandardOutput | ConvertFrom-Csv -Header Name, Value, Status | ForEach-Object { $PACLIcmdOrdDir.Add($psitem.Name, $psitem.Value,"Undeleted") }
+    $PACLIcmdOrdDir.Add("Status", "Deleted")
+    $Result.StandardOutput | ConvertFrom-Csv -Header Name, Value| ForEach-Object { $PACLIcmdOrdDir.Add($psitem.Name, $psitem.Value, "Deleted") }
     return [PSCustomObject]$PACLIcmdOrdDir 
 }

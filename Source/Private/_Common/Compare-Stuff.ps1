@@ -26,11 +26,11 @@ function Compare-Stuff {
                 Compare-Stuff $ReferenceObject[$i] $DifferenceObject[$i] -__Property ($__Property + "[$i]") -__Depth $__Depth -IncludeEqual:$IncludeEqual -ExcludeDifferent:$ExcludeDifferent -PassThru:$PassThru -Compact:$Compact -namesOnly:$namesOnly
             }
         }
-        #check for custom classes or PSCutomObjects and iterate over their properties.
+        #check for custom classes or PSCustomObjects and iterate over their properties.
         elseif ($ReferenceObject -is [PSCustomObject] -or $null -eq $ReferenceObject.GetType().Namespace) {
             $__Depth++
             foreach ($prop in $ReferenceObject.PSObject.properties.name) {
-                #build up the property name hiarachry
+                #build up the property name hierarchy
                 $newProp = $prop
                 if ($__Property) {
                     $newProp = $__Property + '.' + $prop

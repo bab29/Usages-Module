@@ -20,7 +20,7 @@ Function Invoke-PACLICommand {
         Test-PACLISession
     }
 
-    IF ($command -notmatch 'SESSIONID=')   {
+    IF ($command -notmatch 'SESSIONID=') {
         $Command = "$command SESSIONID=$PACLISessionID"
         Write-LogMessage -type Debug -Message "No SESSIONID found in the command. Added SESSIONID to end of command"
     }
@@ -29,28 +29,34 @@ Function Invoke-PACLICommand {
     [System.Diagnostics.ProcessStartInfo]$PACLIProcessStartInfo = @{
         FileName               = "$global:PACLIApp"
         Arguments              = $Command
+        UseShellExecute        = $False 
         RedirectStandardOutput = $true
         RedirectStandardError  = $true
-        CreateNoWindow  = $true
+        CreateNoWindow         = $false
     }
-    $PACLIProcessObject = New-Object System.Diagnostics.Process
-    $PACLIProcessObject.StartInfo = $PACLIProcessStartInfo
-    $PACLIProcessObject.Start() | Out-Null
-    $WaitForExit = 60000
-    IF ($PACLIProcessObject.WaitForExit($WaitForExit)) {
+    Try {
+        $PACLIProcessObject = New-Object System.Diagnostics.Process
+        $PACLIProcessObject.StartInfo = $PACLIProcessStartInfo
+        $PACLIProcessObject.Start() | Out-Null    
         [PSCustomObject]$Results = @{
+            ExitCode = $PACLIProcessObject.ExitCode
             StandardOutput = $PACLIProcessObject.StandardOutput.ReadToEnd()
             StandardError  = $PACLIProcessObject.StandardError.ReadToEnd()
         }
-        If (![string]::IsNullOrEmpty($Results.StandardError)) {
-            $Excepetion = [System.Management.Automation.HaltCommandException]::New("Error running PACLI command")
-            $Excepetion.Source = $Command
-            $Excepetion.Data.Add("StandardOut", $Results.StandardOutput)
-            $Excepetion.Data.Add("StandardError", $Results.StandardError)
-            Throw $Excepetion
+        $WaitForExit = $Global:WaitForExit
+        IF ($PACLIProcessObject.WaitForExit($WaitForExit)) {
+            If (![string]::IsNullOrEmpty($Results.StandardError)) {
+                $Excepetion = [System.Management.Automation.HaltCommandException]::New("Error running PACLI command")
+                $Excepetion.Source = $Command
+                $Excepetion.Data.Add("StandardOut", $Results.StandardOutput)
+                $Excepetion.Data.Add("StandardError", $Results.StandardError)
+                Throw $Excepetion
+            }
+            Return  $Results
+        } Else {
+            Throw "PACLI Command has run for greater then 600 seconds"
         }
-        Return  $Results
-    } Else {
-        Throw "PACLI Command has run for greater then 60 seconds"
+    } finally {
+        $PACLIProcessObject.Dispose()
     }
 }

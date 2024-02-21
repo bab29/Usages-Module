@@ -12,7 +12,7 @@ Function Invoke-PACLISafeClose {
     $PACLICommand = "CLOSESAFE SAFE=`"$Safe`""
 
     Try {
-        $result = Invoke-PACLICommand -Command $PACLICommand -PACLISessionID $Local:PACLISessionID
+        $null = Invoke-PACLICommand -Command $PACLICommand -PACLISessionID $Local:PACLISessionID
         IF ($Safe -in $Script:OpenSafeList) {
             $Script:OpenSafeList.remove($safe)
         }
@@ -25,6 +25,10 @@ Function Invoke-PACLISafeClose {
         }
     }
     If (!$Suppress) {
-        $result
+        $output =[PSCustomObject]@{
+            Safe = $safe
+            Open = "No"
+        }
+        $output | Format-Table
     }
 }
