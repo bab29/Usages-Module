@@ -26,7 +26,7 @@ Function New-UsagePacli {
         $global:InVerbose = $PSBoundParameters.Verbose.IsPresent
     }
 
-    PROcess {
+    process {
         $fail = $false
         [PSCustomObject]$failArray = @{}
 
@@ -46,16 +46,21 @@ Function New-UsagePacli {
         Write-LogMessage -type Verbose -MSG "Excluding the following properties: $excludeProp"
         $Source = $SourceObject | Select-Object -ExcludeProperty $excludeProp
 
+        If (![string]::IsNullOrEmpty($($SourceObject.Name))){
+            $targetName = $SourceObject.Name
+        } else {
+            $targetName = $SourceObject.File
+        }        
         Try {
             IF ($($SourceObject.Safe) -notin $Script:OpenSafeList) {
                 Invoke-PACLISafeOpen -Safe $($SourceObject.Safe) -Suppress:$suppress
             }
             Try {
-                Write-LogMessage -type Debug -MSG "Getting file catagories from `"$($SourceObject.Name)`" in safe `"$($SourceObject.Safe)`""
-                $targetObject = Invoke-PACLIFileCategoriesList -Safe $($SourceObject.Safe) -Target $($SourceObject.Name)
+                Write-LogMessage -type Debug -MSG "Getting file catagories from `"$targetName`" in safe `"$($SourceObject.Safe)`""
+                $targetObject = Invoke-PACLIFileCategoriesList -Safe $($SourceObject.Safe) -Target $targetName
             } Catch [System.IO.FileNotFoundException] {
-                Write-LogMessage -type Debug -MSG "Object not found, creating object `"$($SourceObject.Name)`" in safe `"$($SourceObject.Safe)`""
-                $targetObject = Invoke-PACLIStorePasswordObject -Safe $($SourceObject.Safe) -Target $($SourceObject.Name)
+                Write-LogMessage -type Debug -MSG "Object not found, creating object `"$targetName`" in safe `"$($SourceObject.Safe)`""
+                $targetObject = Invoke-PACLIStorePasswordObject -Safe $($SourceObject.Safe) -Target $targetName
             }
 
             $target = $targetObject | Select-Object -ExcludeProperty $excludeProp
@@ -64,20 +69,20 @@ Function New-UsagePacli {
             [PSCustomObject]$difFileCat = Compare-Stuff -ReferenceObject $Source -DifferenceObject $target -namesOnly
             If ([string]::IsNullOrEmpty($Target)) {
                 [string[]]$addFileCatResult = $($Source.PSObject.Properties.Name)
-                Write-LogMessage -type debug -MSG "No file catagories found on target `"$($SourceObject.Name)`" in safe `"$($SourceObject.Safe)`""
+                Write-LogMessage -type debug -MSG "No file catagories found on target `"$targetName`" in safe `"$($SourceObject.Safe)`""
             } else {
                 $addFileCatResult = (Compare-Stuff -ReferenceObject $($target.PSObject.Properties.Name) -DifferenceObject $($Source.PSObject.Properties.Name)).value
             }
-            Write-LogMessage -type debug -MSG "The following file catagories need to be added to `"$($SourceObject.Name)`" in safe `"$($SourceObject.Safe)`": $($addFileCatResult |Where-Object {$Psitem -notin $difFileCat})"
-            Write-LogMessage -type debug -MSG "The following file catagories do not match on `"$($SourceObject.Name)`" in safe `"$($SourceObject.Safe)`": $($($difFileCat| Where-Object {$psitem.Property -notin $addFileCatResult}).Property)"
+            Write-LogMessage -type debug -MSG "The following file catagories need to be added to `"$targetName`" in safe `"$($SourceObject.Safe)`": $($addFileCatResult |Where-Object {$Psitem -notin $difFileCat})"
+            Write-LogMessage -type debug -MSG "The following file catagories do not match on `"$targetName`" in safe `"$($SourceObject.Safe)`": $($($difFileCat| Where-Object {$psitem.Property -notin $addFileCatResult}).Property)"
 
             $difFileCat | ForEach-Object { Try {
                     If ($PSItem.Property -in $addFileCatResult) {
                         Invoke-PACLIFileCategoryAdd -Target $($targetObject.File) -Safe $($targetObject.Safe) -Catagory $($PSitem.Property) -Value $($PSitem.Value) -Suppress
-                        Write-LogMessage -type debug -MSG "Added catagory `"$($PSitem.Property)`" with the value of `"$($PSitem.Value)`" on target `"$($SourceObject.Name)`" in safe `"$($SourceObject.Safe)`""
+                        Write-LogMessage -type debug -MSG "Added catagory `"$($PSitem.Property)`" with the value of `"$($PSitem.Value)`" on target `"$targetName`" in safe `"$($SourceObject.Safe)`""
                     } else {
                         Invoke-PACLIFileCategoryUpdate -Target $($targetObject.File) -Safe $($targetObject.Safe) -Catagory $($PSitem.Property) -Value $($PSitem.Value) -Suppress
-                        Write-LogMessage -type debug -MSG "Updated catagory `"$($PSitem.Property)`" with the value of `"$($PSitem.Value)`" on target `"$($SourceObject.Name)`" in safe `"$($SourceObject.Safe)`""
+                        Write-LogMessage -type debug -MSG "Updated catagory `"$($PSitem.Property)`" with the value of `"$($PSitem.Value)`" on target `"$targetName`" in safe `"$($SourceObject.Safe)`""
                     }  
                 } Catch [System.Management.Automation.HaltCommandException] {
                     Write-LogMessage -type Error -MSG "Error while running PACLI Command"
@@ -97,10 +102,10 @@ Function New-UsagePacli {
                 Write-LogMessage -type Error -Msg "Creation of objects experienced Errors"
                 Write-LogMessage -type Error -Msg $failArray
             } elseif (!$suppress) {
-                Write-LogMessage -type Info -Msg "Creation of object `"$($SourceObject.Name)`" in safe `"$($SourceObject.Safe)`" completed succesfully"
+                Write-LogMessage -type Info -Msg "Creation of object `"$targetName`" in safe `"$($SourceObject.Safe)`" completed succesfully"
                 $SourceObject
             } Else {
-                Write-LogMessage -type Debug -Msg "Creation of object `"$($SourceObject.Name)`" in safe `"$($SourceObject.Safe)`" completed succesfully"
+                Write-LogMessage -type Debug -Msg "Creation of object `"$targetName`" in safe `"$($SourceObject.Safe)`" completed succesfully"
             }
         } Catch [System.Management.Automation.HaltCommandException] {
             Write-LogMessage -type Error -MSG "Error while running PACLI Command"
@@ -110,7 +115,5 @@ Function New-UsagePacli {
             Write-LogMessage -type Error -MSG "Error while running New-UsagePacli"
             Write-LogMessage -Type Error -msg $PSItem
         }
-    }
-    End {
     }
 }

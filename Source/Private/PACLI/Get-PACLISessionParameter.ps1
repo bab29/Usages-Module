@@ -8,7 +8,7 @@ Function Get-PACLISessionParameter {
     IF (([string]::IsNullOrEmpty($PACLISessionID)) -and ([string]::IsNullOrEmpty($Global:PACLISessionID))) {
         Write-LogMessage -type Error -Message "PACLISessionID was not provided and no global PACLISessionID set"
         Throw "No PACLISessionID found, please run Initialize-PACLISession first"
-    } elseif ([string]::IsNullOrEmpty($PACLISessionID)) {
+    } elseif ((0 -eq $PACLISessionID) -and (0 -ne $Global:PACLISessionID)) {
         $local:PACLISessionID = $Global:PACLISessionID
         Write-LogMessage -type Debug -Message "PACLISessionID was not provided, using Global PACLISessionID: $local:PACLISessionID"
 

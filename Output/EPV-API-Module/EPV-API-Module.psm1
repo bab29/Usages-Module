@@ -387,7 +387,7 @@ Function Get-PACLISessionParameter {
     IF (([string]::IsNullOrEmpty($PACLISessionID)) -and ([string]::IsNullOrEmpty($Global:PACLISessionID))) {
         Write-LogMessage -type Error -Message "PACLISessionID was not provided and no global PACLISessionID set"
         Throw "No PACLISessionID found, please run Initialize-PACLISession first"
-    } elseif ([string]::IsNullOrEmpty($PACLISessionID)) {
+    } elseif ((0 -eq $PACLISessionID) -and (0 -ne $Global:PACLISessionID)) {
         $local:PACLISessionID = $Global:PACLISessionID
         Write-LogMessage -type Debug -Message "PACLISessionID was not provided, using Global PACLISessionID: $local:PACLISessionID"
 
@@ -594,6 +594,7 @@ Function Get-Usages {
     if ([string]::IsNullOrEmpty($sessionToken)) {
         Write-LogMessage -type Error -MSG "No sessionToken set, run Initialize-Session first"
         Throw [System.Management.Automation.SessionStateException]::New("No sessionToken set, run Initialize-Session first")
+       
     }
     Write-LogMessage -Type Debug -Msg "Retrieving Usages..."
 
@@ -656,6 +657,7 @@ Function Get-LogFilePAth{
 #EndRegion '.\Public\Common\Get-LogFilePath.ps1' 4
 #Region '.\Public\Common\Initialize-EPVAPIModule.ps1' -1
 
+
 function Initialize-EPVAPIModule {
     <#
         .SYNOPSIS
@@ -677,7 +679,7 @@ function Initialize-EPVAPIModule {
     "Module Loaded at $private:LOG_DATE" | Out-File $script:LOG_FILE_PATH -Append
     $Global:PACLIApp = "$private:ScriptLocation\Pacli.exe"
 }
-#EndRegion '.\Public\Common\Initialize-EPVAPIModule.ps1' 22
+#EndRegion '.\Public\Common\Initialize-EPVAPIModule.ps1' 23
 #Region '.\Public\Common\Set-LogFilePath.ps1' -1
 
 function Set-LogfilePath {
@@ -1020,21 +1022,29 @@ Function Invoke-PACLIFileList {
         Safe   = $Safe
         Folder = "ROOT"
     }
-    $PACLICommand = "FILESLIST $(Format-PACLICommand -cmdOrdDir $PACLIcmdOrdDir) output`(ALL,ENCLOSE`)"
+    $PACLICommand = "FILESLIST $(Format-PACLICommand -cmdOrdDir $PACLIcmdOrdDir) output`(ENCLOSE,NAME ,ACCESSED ,CREATIONDATE ,CREATEDBY ,DELETIONDATE ,DELETEDBY ,LASTUSEDDATE ,LASTUSEDBY ,LOCKDATE ,LOCKEDBY ,LOCKEDBYGW ,SIZE ,HISTORY ,DRAFT ,RETRIEVELOCK ,INTERNALNAME ,FILEID ,LOCKEDBYUSERID ,VALIDATIONSTATUS`)"
     Try {
         $Result = Invoke-PACLICommand -Command $PACLICommand -PACLISessionID $Local:PACLISessionID
-    } Catch [System.Management.Automation.HaltCommandException] {
+    }
+    Catch [System.Management.Automation.HaltCommandException] {
         If ($PSItem.Exception.Data.StandardError -match "ITATS053E Object .* doesn't exist.") { 
             throw [System.IO.FileNotFoundException]::New()
-        } else {
+        }
+        else {
             Throw $PSItem
         }
     
     }
-    $Result.StandardOutput | ConvertFrom-Csv -Header Name, Value | ForEach-Object { $PACLIcmdOrdDir.Add($psitem.Name, $psitem.Value) }
-    return [PSCustomObject]$PACLIcmdOrdDir 
+    [System.Collections.ArrayList]$headers = @( "Name", "Accessed", "Creation Date", "Created By", "Deletion Date", "Deleted By",
+        "Last Used Date", "Last Used By", "Lock Date", "Locked By", "Locked By Gw", "Size", "History", "Draft",
+        "Retrieval Lock", "Internal Name", "FileID", "Locked By UserID", "Validation Status", "Last File Category Update")
+    $Cleaned = $Result.StandardOutput | ConvertFrom-Csv -Header $headers
+    $Cleaned | Add-Member -MemberType NoteProperty -Name "Safe" -Value $Safe
+    $output = @("safe")
+    $output += $headers
+    return [PSCustomObject]$Cleaned |Select-Object -Property $output
 }
-#EndRegion '.\Public\PACLI\Invoke-PACLIFileList.ps1' 27
+#EndRegion '.\Public\PACLI\Invoke-PACLIFileList.ps1' 35
 #Region '.\Public\PACLI\Invoke-PACLIFileUndelete.ps1' -1
 
 Function Invoke-PACLIFileUndelete {
@@ -1141,6 +1151,65 @@ Function Invoke-PACLISafeOpen {
     }
 }
 #EndRegion '.\Public\PACLI\Invoke-PACLISafeOpen.ps1' 32
+#Region '.\Public\PACLI\Invoke-PACLISessionCredFile.ps1' -1
+
+Function Invoke-PACLISessionCredFile {
+    <#
+        .SYNOPSIS
+        Using PACLI logs onto the target vault and set defaults
+        .DESCRIPTION
+        Using PACLI logs onto the target vault and set defaults
+        Equivlent to running the following commands
+        PACLI Define
+        PACLI Default
+        PACLI Logon
+    #>
+    param (
+        [Parameter(Mandatory = $false)]
+        [string]$vaultIP,
+        [Parameter(Mandatory = $false)]
+        [string]$vaultFile,
+        [Parameter(Mandatory = $true)]
+        [string]$CredFile,
+        [Parameter(Mandatory = $false)]
+        [pscredential]$Credentials,
+        [int]$PACLISessionID
+    )
+    $PACLIProcess = Get-PACLISessions
+    If ([string]::IsNullOrEmpty($PACLIProcess)) {
+        Initialize-PACLISession
+    }
+    $Local:PACLISessionID = Get-PACLISessionParameter -PACLISessionID $PACLISessionID
+    $vaultID = "PCALI$local:PACLISessionID"
+    $credlocation = (Get-Item $CredFile).FullName
+    If ($null -ne $Credentials) { 
+        [string]$resultLogon = Invoke-PACLICommand -Command "CREATELOGONFILE LOGONFILE=`"$credlocation`" USERNAME=`"$($Credentials.username)`" PASSWORD=`"$($Credentials.GetNetworkCredential().password)`""  | Out-Null
+    } 
+    $username = ((Get-Content $credFile) -match '(^Username=.*)').Replace("Username=", "")
+    Try {
+        If (![string]::IsNullOrEmpty($vaultFile)){
+            $vaultID  = ((Get-Content $vaultFile) -match '(^VAULT.*=)').Replace(" ","").Replace("VAULT=", "").Trim().replace("`"","")
+            Invoke-PACLICommand -Command "DEFINEFROMFILE vault=`"$vaultID`" PARMFILE=`"$($(Get-Item $vaultFile).FullName)`"" | Out-Null
+        } else {
+            Invoke-PACLICommand -Command "define vault=`"$vaultID`" address=`"$vaultIP`"" | Out-Null
+        }
+        Invoke-PACLICommand -Command "default vault=`"$vaultID`" user=`"$username`" folder=`"Root`"" | Out-Null        
+        [string]$resultLogon = Invoke-PACLICommand -Command "LOGON VAULT=`"$vaultID`" USER=`"$username`" LOGONFILE=`"$credlocation`"" | Out-Null
+        if (![string]::IsNullOrEmpty($resultLogon)) {
+            $resultLogon
+            Invoke-PACLICommand -Command "logoff SESSIONID=$local:PACLISessionID"
+            Invoke-PACLICommand -Command "term SESSIONID=$local:PACLISessionID"
+            Write-LogMessage -type Error "Error During logon, PACLI Session Terminated"
+            continue
+        }
+    }
+    Catch {
+        (Get-Error -last 1).Exception.data.StandardError
+        Throw
+    }
+    [System.Collections.ArrayList]$Script:OpenSafeList = @()
+}
+#EndRegion '.\Public\PACLI\Invoke-PACLISessionCredFile.ps1' 57
 #Region '.\Public\PACLI\Invoke-PACLISessionLogoff.ps1' -1
 
 Function Invoke-PACLISessionLogoff{
@@ -1250,6 +1319,35 @@ Function Invoke-PACLIStorePasswordObject {
 
 }
 #EndRegion '.\Public\PACLI\Invoke-PACLIStorePasswordObject.ps1' 33
+#Region '.\Public\PACLI\Invoke-PACLSafesList.ps1' -1
+
+Function Invoke-PACLISafesList {
+    param (
+        [Parameter(Mandatory = $false)]
+        [string]$PACLISessionID
+    )
+    $Local:PACLISessionID = Get-PACLISessionParameter -PACLISessionID $PACLISessionID
+    $PACLIcmdOrdDir = [ordered]@{
+    }
+
+    $headers = @( "Name", "Status", "Lastused", "SafeID")
+    $output= ""
+    $headers| ForEach-Object {$output = "$output,$PSItem"}
+
+    $PACLICommand = "SAFESLIST $(Format-PACLICommand -cmdOrdDir $PACLIcmdOrdDir) output`(ENCLOSE$($output)`)"
+    Try {
+        $Result = Invoke-PACLICommand -Command $PACLICommand -PACLISessionID $Local:PACLISessionID
+    } Catch [System.Management.Automation.HaltCommandException] {
+        If ($PSItem.Exception.Data.StandardError -match "ITATS053E Object .* doesn't exist.") { 
+            throw [System.IO.FileNotFoundException]::New()
+        } else {
+            Throw $PSItem
+        }
+    }
+    $Cleaned = $Result.StandardOutput | ConvertFrom-Csv -Header $headers       
+    return [PSCustomObject]$Cleaned
+}
+#EndRegion '.\Public\PACLI\Invoke-PACLSafesList.ps1' 27
 #Region '.\Public\PACLI\Remove-PACLISession.ps1' -1
 
 Function Remove-PACLISession {
@@ -1458,6 +1556,51 @@ Function Clear-Usagelist {
     Remove-Variable -Scope Script -Name UsageList -ErrorAction SilentlyContinue
 }
 #EndRegion '.\Public\Usages\Clear-Usagelist.ps1' 4
+#Region '.\Public\Usages\Copy-Usage.ps1' -1
+
+Function Copy-Usage {
+    [CmdletBinding(DefaultParameterSetName = 'SoureName')]
+    <#
+    .SYNOPSIS
+    Copy a usage to a new object
+    .DESCRIPTION
+    Copy a usage to a new object
+#>
+    param (
+        # File/Object name of the new object
+        [Parameter(Mandatory = $true)]
+        [string]$TargetName,
+        # Safe to put the new object
+        [Parameter(Mandatory = $false)]
+        [string]$TargetSafe,
+        [Parameter(Mandatory = $true)]
+        [string]$TargetAddress,
+        # Object to get the file catagories from
+        [Parameter(Mandatory = $true, ParameterSetName = 'SourceObject')]
+        [pscustomobject]$SourceObject,
+        # Object name of the object to get the file catagories from
+        [Parameter(Mandatory = $true, ParameterSetName = 'SourceName')]
+        [string]$SourceName,
+        # Safe to get the object from
+        [Parameter(Mandatory = $true, ParameterSetName = 'SourceName')]
+        [string]$SourceSafe,
+        # SessionID to use
+        [Parameter(Mandatory = $false)]
+        [string]$PACLISessionID,
+        [switch]$suppress
+    )
+    If ([string]::IsNullOrEmpty($SourceObject)) {
+        $SourceObject = Invoke-PACLIFileCategoriesList -safe $SourceSafe -target $SourceName
+    }
+    $SourceObject.MasterPassName = $TargetName
+    $SourceObject.address = $TargetAddress
+    $SourceObject.File = "$TargetName-$($sourceObject.PolicyID)-$TargetAddress"
+    If (![string]::IsNullOrEmpty($TargetSafe)) {
+        $SourceObject.Safe = $TargetSafe
+    }
+    New-UsagePACLI -SourceObject $SourceObject -Suppress:$suppress
+}
+#EndRegion '.\Public\Usages\Copy-Usage.ps1' 43
 #Region '.\Public\Usages\Export-Usageslist.ps1' -1
 
 
@@ -1576,9 +1719,9 @@ Function Import-Usageslist {
     }
 }
 #EndRegion '.\Public\Usages\Import-Usageslist.ps1' 22
-#Region '.\Public\Usages\Sync-UsageToPacli.ps1' -1
+#Region '.\Public\Usages\New-UsagePacli.ps1' -1
 
-Function Sync-UsageToPacli {
+Function New-UsagePacli {
     [CmdletBinding()]
     <#
         .SYNOPSIS
@@ -1606,7 +1749,7 @@ Function Sync-UsageToPacli {
         $global:InVerbose = $PSBoundParameters.Verbose.IsPresent
     }
 
-    PROcess {
+    process {
         $fail = $false
         [PSCustomObject]$failArray = @{}
 
@@ -1626,16 +1769,21 @@ Function Sync-UsageToPacli {
         Write-LogMessage -type Verbose -MSG "Excluding the following properties: $excludeProp"
         $Source = $SourceObject | Select-Object -ExcludeProperty $excludeProp
 
+        If (![string]::IsNullOrEmpty($($SourceObject.Name))){
+            $targetName = $SourceObject.Name
+        } else {
+            $targetName = $SourceObject.File
+        }        
         Try {
             IF ($($SourceObject.Safe) -notin $Script:OpenSafeList) {
                 Invoke-PACLISafeOpen -Safe $($SourceObject.Safe) -Suppress:$suppress
             }
             Try {
-                Write-LogMessage -type Debug -MSG "Getting file catagories from `"$($SourceObject.Name)`" in safe `"$($SourceObject.Safe)`""
-                $targetObject = Invoke-PACLIFileCategoriesList -Safe $($SourceObject.Safe) -Target $($SourceObject.Name)
+                Write-LogMessage -type Debug -MSG "Getting file catagories from `"$targetName`" in safe `"$($SourceObject.Safe)`""
+                $targetObject = Invoke-PACLIFileCategoriesList -Safe $($SourceObject.Safe) -Target $targetName
             } Catch [System.IO.FileNotFoundException] {
-                Write-LogMessage -type Debug -MSG "Object not found, creating object `"$($SourceObject.Name)`" in safe `"$($SourceObject.Safe)`""
-                $targetObject = Invoke-PACLIStorePasswordObject -Safe $($SourceObject.Safe) -Target $($SourceObject.Name)
+                Write-LogMessage -type Debug -MSG "Object not found, creating object `"$targetName`" in safe `"$($SourceObject.Safe)`""
+                $targetObject = Invoke-PACLIStorePasswordObject -Safe $($SourceObject.Safe) -Target $targetName
             }
 
             $target = $targetObject | Select-Object -ExcludeProperty $excludeProp
@@ -1644,20 +1792,20 @@ Function Sync-UsageToPacli {
             [PSCustomObject]$difFileCat = Compare-Stuff -ReferenceObject $Source -DifferenceObject $target -namesOnly
             If ([string]::IsNullOrEmpty($Target)) {
                 [string[]]$addFileCatResult = $($Source.PSObject.Properties.Name)
-                Write-LogMessage -type debug -MSG "No file catagories found on target `"$($SourceObject.Name)`" in safe `"$($SourceObject.Safe)`""
+                Write-LogMessage -type debug -MSG "No file catagories found on target `"$targetName`" in safe `"$($SourceObject.Safe)`""
             } else {
                 $addFileCatResult = (Compare-Stuff -ReferenceObject $($target.PSObject.Properties.Name) -DifferenceObject $($Source.PSObject.Properties.Name)).value
             }
-            Write-LogMessage -type debug -MSG "The following file catagories need to be added to `"$($SourceObject.Name)`" in safe `"$($SourceObject.Safe)`": $($addFileCatResult |Where-Object {$Psitem -notin $difFileCat})"
-            Write-LogMessage -type debug -MSG "The following file catagories do not match on `"$($SourceObject.Name)`" in safe `"$($SourceObject.Safe)`": $($($difFileCat| Where-Object {$psitem.Property -notin $addFileCatResult}).Property)"
+            Write-LogMessage -type debug -MSG "The following file catagories need to be added to `"$targetName`" in safe `"$($SourceObject.Safe)`": $($addFileCatResult |Where-Object {$Psitem -notin $difFileCat})"
+            Write-LogMessage -type debug -MSG "The following file catagories do not match on `"$targetName`" in safe `"$($SourceObject.Safe)`": $($($difFileCat| Where-Object {$psitem.Property -notin $addFileCatResult}).Property)"
 
             $difFileCat | ForEach-Object { Try {
                     If ($PSItem.Property -in $addFileCatResult) {
                         Invoke-PACLIFileCategoryAdd -Target $($targetObject.File) -Safe $($targetObject.Safe) -Catagory $($PSitem.Property) -Value $($PSitem.Value) -Suppress
-                        Write-LogMessage -type debug -MSG "Added catagory `"$($PSitem.Property)`" with the value of `"$($PSitem.Value)`" on target `"$($SourceObject.Name)`" in safe `"$($SourceObject.Safe)`""
+                        Write-LogMessage -type debug -MSG "Added catagory `"$($PSitem.Property)`" with the value of `"$($PSitem.Value)`" on target `"$targetName`" in safe `"$($SourceObject.Safe)`""
                     } else {
                         Invoke-PACLIFileCategoryUpdate -Target $($targetObject.File) -Safe $($targetObject.Safe) -Catagory $($PSitem.Property) -Value $($PSitem.Value) -Suppress
-                        Write-LogMessage -type debug -MSG "Updated catagory `"$($PSitem.Property)`" with the value of `"$($PSitem.Value)`" on target `"$($SourceObject.Name)`" in safe `"$($SourceObject.Safe)`""
+                        Write-LogMessage -type debug -MSG "Updated catagory `"$($PSitem.Property)`" with the value of `"$($PSitem.Value)`" on target `"$targetName`" in safe `"$($SourceObject.Safe)`""
                     }  
                 } Catch [System.Management.Automation.HaltCommandException] {
                     Write-LogMessage -type Error -MSG "Error while running PACLI Command"
@@ -1674,46 +1822,52 @@ Function Sync-UsageToPacli {
                 }
             }
             If ($fail) {
-                Write-LogMessage -type Error -Msg "Synchronization of objects experienced Errors"
+                Write-LogMessage -type Error -Msg "Creation of objects experienced Errors"
                 Write-LogMessage -type Error -Msg $failArray
             } elseif (!$suppress) {
-                Write-LogMessage -type Info -Msg "Synchronization of object `"$($SourceObject.Name)`" in safe `"$($SourceObject.Safe)`" completed succesfully"
+                Write-LogMessage -type Info -Msg "Creation of object `"$targetName`" in safe `"$($SourceObject.Safe)`" completed succesfully"
                 $SourceObject
             } Else {
-                Write-LogMessage -type Debug -Msg "Synchronization of object `"$($SourceObject.Name)`" in safe `"$($SourceObject.Safe)`" completed succesfully"
+                Write-LogMessage -type Debug -Msg "Creation of object `"$targetName`" in safe `"$($SourceObject.Safe)`" completed succesfully"
             }
         } Catch [System.Management.Automation.HaltCommandException] {
             Write-LogMessage -type Error -MSG "Error while running PACLI Command"
             Write-LogMessage -Type Error -MSG "Command run: `"$($PSItem.Exception.Source)`"" 
             Write-LogMessage -Type Error -MSG "StandardError: `"$($PSItem.Exception.Data.StandardError)`""
         } Catch {
-            Write-LogMessage -type Error -MSG "Error while running Sync-UsageToPacli"
+            Write-LogMessage -type Error -MSG "Error while running New-UsagePacli"
             Write-LogMessage -Type Error -msg $PSItem
         }
     }
-    End {
-    }
 }
-#EndRegion '.\Public\Usages\Sync-UsageToPacli.ps1' 117
-#Region '.\Public\Usages\Sync-UsageToPacliPara.ps1' -1
+#EndRegion '.\Public\Usages\New-UsagePacli.ps1' 120
+#Region '.\Public\Usages\Sync-UsageToPacli.ps1' -1
 
-Function Sync-UsageToPacliPara {
+Function Sync-UsageToPacli {
+    [CmdletBinding()]
+    <#
+        .SYNOPSIS
+        Using the PSCustomObject array passed, creates the usages in target vault via PACLI
+        .DESCRIPTION
+        Using the PSCustomObject array passed, creates or modifies existing usages in target vault via PACLI
+        Single threaded process
+        Object requires the minimun of the following properties:
+            Name, UsageID, UsageInfo, Safe, Folder, File
+        Any additional properties will be added
+        .NOTES
+        If a usage was deleted, but a version still exists in the safe, the prior version will be restored and then updated.
+        #>
     param(
+        # The object to be processed.
+
         [Parameter(Mandatory = $true, ValueFromPipeline = $true)]
         [PSCustomObject[]]
         $SourceObject,
         [switch]
         $suppress
     )
-    begin {
-        $global:InDebug = $PSBoundParameters.Debug.IsPresent
-        $global:InVerbose = $PSBoundParameters.Verbose.IsPresent
-    }
+# Kept in place for backwards compatibility
+return New-UsagePACLI -SourceObject $SourceObject -Suppress $suppress
 
-    PROcess {
-        
-    }
-    End {
-    }
 }
-#EndRegion '.\Public\Usages\Sync-UsageToPacliPara.ps1' 20
+#EndRegion '.\Public\Usages\Sync-UsageToPacli.ps1' 28
