@@ -1,9 +1,10 @@
-$SafeRegEx = '^babtest.*$'
+$SafeRegEx = '^.*MICROS$'
 $StagePlatformRegEx = '^WinDomain$'
 $UsernameRegEx =  '^.*Admin.*$|^binduser$'
-$CompletePlatform = "WinDomain"
-$SourceObject = "Operating System-WinDomain-lab.local-admin-Registry-Test"
-$SourceSafe = "BABTest"
+$StageAddress = '^.*Test$'
+$CompletePlatform = "WinDesktopLocal"
+$SourceObject = 'DesktopLocalAcct-sfismicros-Registry-%cn%'
+$SourceSafe = "AD Configuration"
 #$PACLIApp = ""
 #$ModuleLocation = ""
 

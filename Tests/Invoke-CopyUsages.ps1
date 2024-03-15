@@ -16,6 +16,8 @@ param (
     [string]$StagePlatformRegEx,
     [parameter(Mandatory = $false)] 
     [string]$UsernameRegEx,
+    [parameter(Mandatory = $false)] 
+    [string]$AddressRegEx,
 
     [parameter(Mandatory = $false)] 
     [string]$sourceObject,
@@ -32,13 +34,15 @@ function Get-ListToAdd {
     param (
         [string]$SafeRegEx,
         [string]$PolicyRegEx,
-        [string]$UsernameRegEx
+        [string]$UsernameRegEx,
+        [string]$AddressRegEx
     )
     $MatchSafe = $safeList | Where-Object { $PSItem.Name -Match $SafeRegEx }
     $SafeAccountList = $matchSafe | ForEach-Object { Invoke-PACLIFileFind -safe $PSItem.Name -DelOption WITHOUT_DELETED }
     $SafeAccountListFileCats = $SafeAccountList | ForEach-Object { Invoke-PACLIFileCategoriesList -target $($PSItem.Name) -safe $($PSItem.safe) }
     $AccountPolicy = $SafeAccountListFileCats | Where-Object { $PSItem.PolicyID -Match $PolicyRegEx }
-    $AccountUsername = $AccountPolicy | Where-Object { $PSItem.Username -Match $UsernameRegEx }
+    $AccountAddress = $AccountPolicy | Where-Object { $PSItem.Address -Match $AddressRegEx }
+    $AccountUsername = $AccountAddress | Where-Object { $PSItem.Username -Match $UsernameRegEx }
 
     $UsagesList = $SafeAccountListFileCats | Where-Object { ![string]::IsNullOrEmpty($PSItem.MasterPassName) `
             -and ($SourceObject.PolicyID -eq $PSItem.PolicyID) `
@@ -71,13 +75,16 @@ Try {
         SafeRegEx     = $SafeRegEx
         PolicyRegEx   = $StagePlatformRegEx
         UsernameRegEx = $UsernameRegEx
+        $AddressRegEx = $AddressRegEx
     }
 
     Get-ListToAdd @GetListToAdd | ForEach-Object { 
         Copy-Usage -targetname $PSITem.File -targetSafe $PSItem.Safe -targetAddress $PSITem.Address -SourceName $sourceObject -SourceSafe $sourceSafe
         Invoke-PACLIFileCategoryUpdate -Target $PSItem.File -Safe $PSItem.Safe -Catagory "PolicyID" -Value $CompletedPlatform
+        Invoke-PACLIFileCategoryDelete -Target $PSItem.File -Safe $PSItem.Safe -Catagory "CPMDisabled"
+        Invoke-PACLIFileCategoryAdd -Target $PSItem.File -Safe $PSItem.Safe -Catagory "ResetImmediately" -Value "ChangeTask"
     }
-}
+}	
 Finally {
     INvoke-PACLiSessionLogoff
     Remove-PACLISession -RemoveAllSessions
