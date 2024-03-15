@@ -1,5 +1,3 @@
-
-
 $SafeRegEx = '^babtest.*$'
 $StagePlatformRegEx = '^WinDomain$'
 $UsernameRegEx =  '^.*Admin.*$|^binduser$'

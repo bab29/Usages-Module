@@ -1,4 +1,3 @@
-
 param (
     [parameter(Mandatory = $false)] 
     [string]$ConfigFile = "$($(Get-Location).Path)\Invoke-CopyUsages-Config.ps1",
@@ -54,9 +53,9 @@ function Get-ListToAdd {
 IF (!$(Test-Path -Path "$ConfigFile")) {
     . $ConfigFile
 }
-Set-Location $PACLIApp
 Import-Module $ModuleLocation -Force
 Initialize-EPVAPIModule
+Set-Location $PACLIApp
 
 Try {
     Remove-PACLISession -RemoveAllSessions
@@ -75,10 +74,11 @@ Try {
     }
 
     Get-ListToAdd @GetListToAdd | ForEach-Object { 
-        Copy-Usage -targetname $PSITem.File -targetSafe $PSItem.Safe -targetAddress $PSITem.Address -SourceName $sourceObject -SourceSafe $safe
+        Copy-Usage -targetname $PSITem.File -targetSafe $PSItem.Safe -targetAddress $PSITem.Address -SourceName $sourceObject -SourceSafe $sourceSafe
         Invoke-PACLIFileCategoryUpdate -Target $PSItem.File -Safe $PSItem.Safe -Catagory "PolicyID" -Value $CompletedPlatform
     }
 }
 Finally {
+    INvoke-PACLiSessionLogoff
     Remove-PACLISession -RemoveAllSessions
 }
