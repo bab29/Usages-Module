@@ -20,47 +20,20 @@ param (
     [string]$AddressRegEx,
 
     [parameter(Mandatory = $false)] 
-    [string]$sourceObject,
+    [string]$SourceName,
     [parameter(Mandatory = $false)] 
-    [string]$sourceSafe, 
+    [string]$SourceSafe, 
 
     [parameter(Mandatory = $false)] 
     [string]$CompletedPlatform
-    
 )
 
-
-function Get-ListToAdd {
-    param (
-        [string]$SafeRegEx,
-        [string]$PolicyRegEx,
-        [string]$UsernameRegEx,
-        [string]$AddressRegEx
-    )
-    $MatchSafe = $safeList | Where-Object { $PSItem.Name -Match $SafeRegEx }
-    $SafeAccountList = $matchSafe | ForEach-Object { Invoke-PACLIFileFind -safe $PSItem.Name -DelOption WITHOUT_DELETED }
-    $SafeAccountListFileCats = $SafeAccountList | ForEach-Object { Invoke-PACLIFileCategoriesList -target $($PSItem.Name) -safe $($PSItem.safe) }
-    $AccountPolicy = $SafeAccountListFileCats | Where-Object { $PSItem.PolicyID -Match $PolicyRegEx }
-    $AccountAddress = $AccountPolicy | Where-Object { $PSItem.Address -Match $AddressRegEx }
-    $AccountUsername = $AccountAddress | Where-Object { $PSItem.Username -Match $UsernameRegEx }
-
-    $UsagesList = $SafeAccountListFileCats | Where-Object { ![string]::IsNullOrEmpty($PSItem.MasterPassName) `
-            -and ($SourceObject.PolicyID -eq $PSItem.PolicyID) `
-            -and ($SourceObject.RegistryPathName -eq $PSitem.RegistryPathName) `
-            -and ($SourceObject.RegistryValueName -eq $PSitem.RegistryValueName) }
-
-    [pscustomobject[]]$toAddList = $AccountUsername | Where-Object { $PSItem.File -Notin $UsagesList.MasterPassName }
-
-    Return $toAddList
-} 
-
-IF (!$(Test-Path -Path "$ConfigFile")) {
+IF ($(Test-Path -Path "$ConfigFile")) {
     . $ConfigFile
 }
 Import-Module $ModuleLocation -Force
 Initialize-EPVAPIModule
-Set-Location $PACLIApp
-
+Push-Location (Get-Item $PACLIAPP).Directory.FullName
 Try {
     Remove-PACLISession -RemoveAllSessions
     Initialize-PACLISession
@@ -71,21 +44,30 @@ Try {
         Invoke-PACLISessionCredFile -vaultFile ".\vault.ini" -CredFile ".\user.ini" -Credentials $cred
     }
 
-    $GetListToAdd = [pscustomobject]@{
+    $SourceObject = Invoke-PACLIFileCategoriesList -target $SourceName -safe $SourceSafe 
+
+    $GetListToAdd = @{
         SafeRegEx     = $SafeRegEx
         PolicyRegEx   = $StagePlatformRegEx
         UsernameRegEx = $UsernameRegEx
-        $AddressRegEx = $AddressRegEx
+        AddressRegEx  = $AddressRegEx
+        SourceObject  = $SourceObject
     }
-
-    Get-ListToAdd @GetListToAdd | ForEach-Object { 
-        Copy-Usage -targetname $PSITem.File -targetSafe $PSItem.Safe -targetAddress $PSITem.Address -SourceName $sourceObject -SourceSafe $sourceSafe
-        Invoke-PACLIFileCategoryUpdate -Target $PSItem.File -Safe $PSItem.Safe -Catagory "PolicyID" -Value $CompletedPlatform
-        Invoke-PACLIFileCategoryDelete -Target $PSItem.File -Safe $PSItem.Safe -Catagory "CPMDisabled"
-        Invoke-PACLIFileCategoryAdd -Target $PSItem.File -Safe $PSItem.Safe -Catagory "ResetImmediately" -Value "ChangeTask"
+    $list = Get-ListToAdd @GetListToAdd 
+    
+    $list | ForEach-Object { Try {
+        $Target = $PSItem
+        Copy-Usage -targetname $Target.File -targetSafe $Target.Safe -targetAddress $Target.Address -SourceName $sourceObject -SourceSafe $sourceSafe
+        Invoke-PACLIFileCategoryUpdate -Target $Target.File -Safe $Target.Safe -Catagory "PolicyID" -Value $CompletedPlatform
+        Invoke-PACLIFileCategoryDelete -Target $Target.File -Safe $Target.Safe -Catagory "CPMDisabled"
+        Invoke-PACLIFileCategoryAdd -Target $Target.File -Safe $Target.Safe -Catagory "ResetImmediately" -Value "ChangeTask"
+    } Catch {
+        Write-LogMessage -Type Error "Error Processing target file `"$($Target.File)`" in `"$($Target.Safe)`""
     }
+}
 }	
 Finally {
-    INvoke-PACLiSessionLogoff
+    Invoke-PACLiSessionLogoff
     Remove-PACLISession -RemoveAllSessions
+    Pop-Location
 }

@@ -668,7 +668,8 @@ function Initialize-EPVAPIModule {
     #>
     If ([string]::IsNullOrEmpty($MyInvocation.MyCommand.Path)) {
         $private:ScriptLocation = $pwd.Path
-    } else {
+    }
+    else {
         $private:ScriptFullPath = $MyInvocation.MyCommand.Path
         $private:ScriptLocation = Split-Path -Parent $ScriptFullPath
     }
@@ -677,9 +678,11 @@ function Initialize-EPVAPIModule {
     $private:LOG_DATE = $(Get-Date -Format yyyyMMdd) + "-" + $(Get-Date -Format HHmmss)
     $script:LOG_FILE_PATH = "$private:ScriptLocation\EPV-API-Module.Log"
     "Module Loaded at $private:LOG_DATE" | Out-File $script:LOG_FILE_PATH -Append
-    $Global:PACLIApp = "$private:ScriptLocation\Pacli.exe"
+    IF (!$(Test-Path variable:global:PACLIApp)) {
+        $Global:PACLIApp = "$private:ScriptLocation\Pacli.exe"
+    }
 }
-#EndRegion '.\Public\Common\Initialize-EPVAPIModule.ps1' 23
+#EndRegion '.\Public\Common\Initialize-EPVAPIModule.ps1' 26
 #Region '.\Public\Common\Set-LogFilePath.ps1' -1
 
 function Set-LogfilePath {
@@ -697,6 +700,36 @@ function Set-LogfilePath {
     }
 }
 #EndRegion '.\Public\Common\Set-LogFilePath.ps1' 15
+#Region '.\Public\PACLI\Get-ListToAdd.ps1' -1
+
+function Get-ListToAdd {
+    [CmdletBinding()]
+    param (
+        [string]$SafeRegEx,
+        [string]$PolicyRegEx,
+        [string]$UsernameRegEx,
+        [string]$AddressRegEx,
+        [String]$SourceObject
+    )
+
+    $safelist = Invoke-PACLISafesList
+    $MatchSafe = $safeList | Where-Object { $PSItem.Name -Match $SafeRegEx }
+    $SafeAccountList = $matchSafe | ForEach-Object { Invoke-PACLIFileFind -safe $PSItem.Name -DelOption WITHOUT_DELETED }
+    $SafeAccountListFileCats = $SafeAccountList | ForEach-Object { Invoke-PACLIFileCategoriesList -target $($PSItem.Name) -safe $($PSItem.safe) }
+    $AccountPolicy = $SafeAccountListFileCats | Where-Object { $PSItem.PolicyID -Match $PolicyRegEx }
+    $AccountAddress = $AccountPolicy | Where-Object { $PSItem.Address -Match $AddressRegEx }
+    $AccountUsername = $AccountAddress | Where-Object { $PSItem.Username -Match $UsernameRegEx }
+
+    $UsagesList = $SafeAccountListFileCats | Where-Object { ![string]::IsNullOrEmpty($PSItem.MasterPassName) `
+            -and ($SourceObject.PolicyID -eq $PSItem.PolicyID) `
+            -and ($SourceObject.RegistryPathName -eq $PSitem.RegistryPathName) `
+            -and ($SourceObject.RegistryValueName -eq $PSitem.RegistryValueName) }
+
+    [pscustomobject[]]$toAddList = $AccountUsername | Where-Object { $PSItem.File -Notin $UsagesList.MasterPassName }
+
+    Return $toAddList
+} 
+#EndRegion '.\Public\PACLI\Get-ListToAdd.ps1' 28
 #Region '.\Public\PACLI\Get-PACLISessions.ps1' -1
 
 Function Get-PACLISessions {
