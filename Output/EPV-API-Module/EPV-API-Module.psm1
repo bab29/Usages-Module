@@ -1405,7 +1405,7 @@ function Initialize-Session {
         [Parameter(Mandatory = $false)]
         [Switch]$DisableSSLVerify
     )
-    Initialize-Function
+    Initialize-Function 
     Test-PVWA -PVWAURL $PVWAURL
     If (![string]::IsNullOrEmpty($logonToken)) {
         Write-LogMessage -Type Info -MSG "Setting Logon Token"
@@ -1636,14 +1636,17 @@ Function New-UsagePacli {
 
     PROcess {
         $fail = $false
-        [PSCustomObject]$failArray = @{}
+        [PSCustomObject]$failArray = @()
 
         switch ($SourceObject) {
-        ([string]::IsNullOrEmpty($SourceObject.Safe)) { throw [System.ArgumentNullException]::New("Missing Safe Name") 
+        ([string]::IsNullOrEmpty($SourceObject.Safe)) {
+                throw [System.ArgumentNullException]::New("Missing Safe Name") 
             }
-        ([string]::IsNullOrEmpty($SourceObject.Folder)) { throw [System.ArgumentNullException]::New("Missing Folder Name") 
+        ([string]::IsNullOrEmpty($SourceObject.Folder)) {
+                throw [System.ArgumentNullException]::New("Missing Folder Name") 
             }
-        ([string]::IsNullOrEmpty($SourceObject.File)) { throw [System.ArgumentNullException]::New("Missing File Name") 
+        ([string]::IsNullOrEmpty($SourceObject.File)) {
+                throw [System.ArgumentNullException]::New("Missing File Name") 
             }
         } 
 
@@ -1661,7 +1664,8 @@ Function New-UsagePacli {
             Try {
                 Write-LogMessage -type Debug -MSG "Getting file catagories from `"$($SourceObject.Name)`" in safe `"$($SourceObject.Safe)`""
                 $targetObject = Invoke-PACLIFileCategoriesList -Safe $($SourceObject.Safe) -Target $($SourceObject.Name)
-            } Catch [System.IO.FileNotFoundException] {
+            }
+            Catch [System.IO.FileNotFoundException] {
                 Write-LogMessage -type Debug -MSG "Object not found, creating object `"$($SourceObject.Name)`" in safe `"$($SourceObject.Safe)`""
                 $targetObject = Invoke-PACLIStorePasswordObject -Safe $($SourceObject.Safe) -Target $($SourceObject.Name)
             }
@@ -1673,48 +1677,63 @@ Function New-UsagePacli {
             If ([string]::IsNullOrEmpty($Target)) {
                 [string[]]$addFileCatResult = $($Source.PSObject.Properties.Name)
                 Write-LogMessage -type debug -MSG "No file catagories found on target `"$($SourceObject.Name)`" in safe `"$($SourceObject.Safe)`""
-            } else {
+            }
+            else {
                 $addFileCatResult = (Compare-Stuff -ReferenceObject $($target.PSObject.Properties.Name) -DifferenceObject $($Source.PSObject.Properties.Name)).value
             }
             Write-LogMessage -type debug -MSG "The following file catagories need to be added to `"$($SourceObject.Name)`" in safe `"$($SourceObject.Safe)`": $($addFileCatResult |Where-Object {$Psitem -notin $difFileCat})"
             Write-LogMessage -type debug -MSG "The following file catagories do not match on `"$($SourceObject.Name)`" in safe `"$($SourceObject.Safe)`": $($($difFileCat| Where-Object {$psitem.Property -notin $addFileCatResult}).Property)"
 
-            $difFileCat | ForEach-Object { Try {
-                    If ($PSItem.Property -in $addFileCatResult) {
-                        Invoke-PACLIFileCategoryAdd -Target $($targetObject.File) -Safe $($targetObject.Safe) -Catagory $($PSitem.Property) -Value $($PSitem.Value) -Suppress
-                        Write-LogMessage -type debug -MSG "Added catagory `"$($PSitem.Property)`" with the value of `"$($PSitem.Value)`" on target `"$($SourceObject.Name)`" in safe `"$($SourceObject.Safe)`""
-                    } else {
-                        Invoke-PACLIFileCategoryUpdate -Target $($targetObject.File) -Safe $($targetObject.Safe) -Catagory $($PSitem.Property) -Value $($PSitem.Value) -Suppress
-                        Write-LogMessage -type debug -MSG "Updated catagory `"$($PSitem.Property)`" with the value of `"$($PSitem.Value)`" on target `"$($SourceObject.Name)`" in safe `"$($SourceObject.Safe)`""
-                    }  
-                } Catch [System.Management.Automation.HaltCommandException] {
-                    Write-LogMessage -type Error -MSG "Error while running PACLI Command"
-                    Write-LogMessage -Type Error -MSG "Command run: `"$($PSItem.Exception.Source)`"" 
-                    Write-LogMessage -Type Error -MSG "StandardError: `"$($PSItem.Exception.Data.StandardError)`""
-                    $script:fail = $True
-                    return
-                } Catch {
-                    Write-LogMessage -type Error -MSG "Error while running Sync-UsageToPacli"
-                    Write-LogMessage -Type Error -msg $PSItem
-                    $script:fail = $True
-                    $failArray += [PSCustomObject]$psitem
-                    return
+            IF ([string]::IsNullOrEmpty($difFileCat)) {
+                Write-LogMessage -type debug -MSG "`"$($SourceObject.Name)`" in safe `"$($SourceObject.Safe)`" requires no updates"
+            }
+            else {
+                $difFileCat | ForEach-Object { Try {
+                        If ($PSItem.Property -in $addFileCatResult) {
+                            Write-LogMessage -type debug -MSG "Trying to add catagory `"$($PSitem.Property)`" with the value of `"$($PSitem.Value)`" on target `"$($SourceObject.Name)`" in safe `"$($SourceObject.Safe)`""
+                            Invoke-PACLIFileCategoryAdd -Target $($targetObject.File) -Safe $($targetObject.Safe) -Catagory $($PSitem.Property) -Value $($PSitem.Value) -Suppress
+                            Write-LogMessage -type debug -MSG "Added catagory `"$($PSitem.Property)`" with the value of `"$($PSitem.Value)`" on target `"$($SourceObject.Name)`" in safe `"$($SourceObject.Safe)`""
+                        }
+                        else {
+                            Write-LogMessage -type debug -MSG "Trying to update catagory `"$($PSitem.Property)`" with the value of `"$($PSitem.Value)`" on target `"$($SourceObject.Name)`" in safe `"$($SourceObject.Safe)`""
+                            Invoke-PACLIFileCategoryUpdate -Target $($targetObject.File) -Safe $($targetObject.Safe) -Catagory $($PSitem.Property) -Value $($PSitem.Value) -Suppress
+                            Write-LogMessage -type debug -MSG "Updated catagory `"$($PSitem.Property)`" with the value of `"$($PSitem.Value)`" on target `"$($SourceObject.Name)`" in safe `"$($SourceObject.Safe)`""
+                        }  
+                    }
+                    Catch [System.Management.Automation.HaltCommandException] {
+                        Write-LogMessage -type Error -MSG "Error while running PACLI Command"
+                        Write-LogMessage -Type Error -MSG "Command run: `"$($PSItem.Exception.Source)`"" 
+                        Write-LogMessage -Type Error -MSG "StandardError: `"$($PSItem.Exception.Data.StandardError)`""
+                        $script:fail = $True
+                        return
+                    }
+                    Catch {
+                        Write-LogMessage -type Error -MSG "Error while running Sync-UsageToPacli"
+                        Write-LogMessage -Type Error -msg $PSItem
+                        $script:fail = $True
+                        $failArray += [PSCustomObject]$psitem
+                        return
+                    }
                 }
             }
             If ($fail) {
                 Write-LogMessage -type Error -Msg "Creation of objects experienced Errors"
                 Write-LogMessage -type Error -Msg $failArray
-            } elseif (!$suppress) {
+            }
+            elseif (!$suppress) {
                 Write-LogMessage -type Info -Msg "Creation of object `"$($SourceObject.Name)`" in safe `"$($SourceObject.Safe)`" completed succesfully"
                 $SourceObject
-            } Else {
+            }
+            Else {
                 Write-LogMessage -type Debug -Msg "Creation of object `"$($SourceObject.Name)`" in safe `"$($SourceObject.Safe)`" completed succesfully"
             }
-        } Catch [System.Management.Automation.HaltCommandException] {
+        }
+        Catch [System.Management.Automation.HaltCommandException] {
             Write-LogMessage -type Error -MSG "Error while running PACLI Command"
             Write-LogMessage -Type Error -MSG "Command run: `"$($PSItem.Exception.Source)`"" 
             Write-LogMessage -Type Error -MSG "StandardError: `"$($PSItem.Exception.Data.StandardError)`""
-        } Catch {
+        }
+        Catch {
             Write-LogMessage -type Error -MSG "Error while running New-UsagePacli"
             Write-LogMessage -Type Error -msg $PSItem
         }
@@ -1722,7 +1741,7 @@ Function New-UsagePacli {
     End {
     }
 }
-#EndRegion '.\Public\Usages\New-UsagePacli.ps1' 117
+#EndRegion '.\Public\Usages\New-UsagePacli.ps1' 136
 #Region '.\Public\Usages\Sync-UsageToPacli.ps1' -1
 
 Function Sync-UsageToPacli {

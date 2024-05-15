@@ -35,7 +35,7 @@ function Initialize-Session {
         [Parameter(Mandatory = $false)]
         [Switch]$DisableSSLVerify
     )
-    Initialize-Function
+    Initialize-Function 
     Test-PVWA -PVWAURL $PVWAURL
     If (![string]::IsNullOrEmpty($logonToken)) {
         Write-LogMessage -Type Info -MSG "Setting Logon Token"
