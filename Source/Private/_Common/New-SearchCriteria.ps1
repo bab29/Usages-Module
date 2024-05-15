@@ -14,7 +14,6 @@ Function New-SearchCriteria {
     if (![string]::IsNullOrEmpty($sSortParam)) {
         Write-LogMessage -Type Debug -Msg "Sort: $sSortParam"
         $retURL += "sort=$(Convert-ToURL $sSortParam)&"
-
     }
     if ($startswith) {
         Write-LogMessage -Type Debug -Msg "startswith: $sSortParam"
