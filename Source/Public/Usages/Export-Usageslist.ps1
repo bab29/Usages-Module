@@ -30,7 +30,7 @@ Function Export-Usageslist {
         # Limit of accounts to return. 
         # Maximum is controlled via MaxDisplayedRecords
         [Parameter(Mandatory = $false)]
-        [string]$Limit,
+        [string]$Limit=1000,
         # Limit Keyword searches to "StartsWith" instead of default "Contains"
         [Parameter(Mandatory = $false)]
         [boolean]$startswith,
