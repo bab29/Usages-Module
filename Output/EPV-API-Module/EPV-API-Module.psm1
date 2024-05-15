@@ -208,7 +208,10 @@ Function New-SearchCriteria {
         Write-LogMessage -Type Debug -Msg "Limit: $iLimitPage"
         $retURL += "limit=$iLimitPage&"
     }
-		
+    if ($iOffsetPage -gt 0) {
+        Write-LogMessage -Type Debug -Msg "Offset: $iOffsetPage"
+        $retURL += "Offset=$iOffsetPage&"
+    }	
     if ($retURL[-1] -eq '&') {
         $retURL = $retURL.substring(0, $retURL.length - 1) 
     }
@@ -216,7 +219,7 @@ Function New-SearchCriteria {
 	
     return $retURL
 }
-#EndRegion '.\Private\_Common\New-SearchCriteria.ps1' 34
+#EndRegion '.\Private\_Common\New-SearchCriteria.ps1' 37
 #Region '.\Private\_Common\Write-LogMessage.ps1' -1
 
 Function Write-LogMessage {

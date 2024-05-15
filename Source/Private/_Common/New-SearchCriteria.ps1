@@ -23,7 +23,10 @@ Function New-SearchCriteria {
         Write-LogMessage -Type Debug -Msg "Limit: $iLimitPage"
         $retURL += "limit=$iLimitPage&"
     }
-		
+    if ($iOffsetPage -gt 0) {
+        Write-LogMessage -Type Debug -Msg "Offset: $iOffsetPage"
+        $retURL += "Offset=$iOffsetPage&"
+    }	
     if ($retURL[-1] -eq '&') {
         $retURL = $retURL.substring(0, $retURL.length - 1) 
     }
