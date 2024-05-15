@@ -199,7 +199,6 @@ Function New-SearchCriteria {
     if (![string]::IsNullOrEmpty($sSortParam)) {
         Write-LogMessage -Type Debug -Msg "Sort: $sSortParam"
         $retURL += "sort=$(Convert-ToURL $sSortParam)&"
-
     }
     if ($startswith) {
         Write-LogMessage -Type Debug -Msg "startswith: $sSortParam"
@@ -217,7 +216,7 @@ Function New-SearchCriteria {
 	
     return $retURL
 }
-#EndRegion '.\Private\_Common\New-SearchCriteria.ps1' 35
+#EndRegion '.\Private\_Common\New-SearchCriteria.ps1' 34
 #Region '.\Private\_Common\Write-LogMessage.ps1' -1
 
 Function Write-LogMessage {
@@ -581,6 +580,9 @@ Function Get-Usages {
         # Maximum about of records to return 
         [Parameter(Mandatory = $false)]
         [string]$Limit,
+        # Offset to start at 
+        [Parameter(Mandatory = $false)]
+        [string]$OffSet,
         # Use to limit results to results that starts with
         [Parameter(Mandatory = $false)]
         [boolean]$startswith,
@@ -594,6 +596,7 @@ Function Get-Usages {
     if ([string]::IsNullOrEmpty($sessionToken)) {
         Write-LogMessage -type Error -MSG "No sessionToken set, run Initialize-Session first"
         Throw [System.Management.Automation.SessionStateException]::New("No sessionToken set, run Initialize-Session first")
+       
     }
     Write-LogMessage -Type Debug -Msg "Retrieving Usages..."
 
@@ -601,17 +604,21 @@ Function Get-Usages {
 
     try {
         $UsagesURLWithFilters = ""
-        $UsagesURLWithFilters = $(New-SearchCriteria -sURL $URL_Usages -sSearch $Keywords -sSortParam $SortBy -sSafeName $SafeName -iLimitPage $Limit -startswith $startswith)
+        $UsagesURLWithFilters = $(New-SearchCriteria -sURL $URL_Usages -sSearch $Keywords -sSortParam $SortBy -sSafeName $SafeName -iLimitPage $Limit -iOffsetPage $OffSet -startswith $startswith)
         Write-LogMessage -Type Debug -Msg $UsagesURLWithFilters
-    } catch {
+    }
+    catch {
         Write-LogMessage -Type Error -Msg $_.Exception
     }
     try {
         $GetUsagesResponse = Invoke-Rest -Command Get -Uri $UsagesURLWithFilters -Header $sessionToken
-    } catch {
+    }
+    catch {
         Write-LogMessage -Type Error -Msg $_.Exception.Response.StatusDescription
     }
 						
+<#     
+#v2 Interface with NextLink
     $GetUsagesList = @()
     $counter = 1
     $GetUsagesList += $GetUsagesResponse.Usages | Select-Object UsageID -ExpandProperty Properties 
@@ -620,7 +627,8 @@ Function Get-Usages {
     If (![string]::IsNullOrEmpty($GetUsagesResponse.nextLink)) {
         $nextLink = $("$URL/$($GetUsagesResponse.nextLink)")
         Write-LogMessage -Type Debug -Msg "Getting Usages next link: $nextLink"
-    } else {
+    }
+    else {
         $nextLink = $null
     }
     While (-not [string]::IsNullOrEmpty($nextLink)) {
@@ -632,22 +640,38 @@ Function Get-Usages {
         If (![string]::IsNullOrEmpty($GetUsagesResponse.nextLink)) {
             $nextLink = $("$URL/$($GetUsagesResponse.nextLink)")
             Write-LogMessage -Type Debug -Msg "Getting Usages next link: $nextLink"
-        } else {
+        }
+        else {
             $nextLink = $null
         }
-    }
-				
+    } #>
+
+    $GetUsagesList = @()
+    $GetUsagesList += $GetUsagesResponse.Usages | Select-Object UsageID -ExpandProperty Properties 
+    $totalUsages = $GetUsagesResponse.Total
+    
+    While ($totalUsages -gt $GetUsagesList.Count) {
+        $UsagesURLWithFilters = $(New-SearchCriteria -sURL $URL_Usages -sSearch $Keywords -sSortParam $SortBy -sSafeName $SafeName -iLimitPage $Limit -iOffsetPage $($GetUsagesList.count) -startswith $startswith)
+        try {
+            $GetUsagesResponse = Invoke-Rest -Command Get -Uri $UsagesURLWithFilters -Header $sessionToken
+            $GetUsagesList += $GetUsagesResponse.Usages | Select-Object UsageID -ExpandProperty Properties
+            Write-LogMessage -Type debug -Msg "Found $($GetUsagesList.count) Usages so far..."
+        }
+        catch {
+            Write-LogMessage -Type Error -Msg $_.Exception.Response.StatusDescription
+        }       
+    }	
     Write-LogMessage -Type debug -Msg "Completed retriving $($GetUsagesList.count) Usages"
     IF ($global:SuperVerbose) {
         Write-LogMessage -Type Verbose -Msg "SuperVerbose: GetUsagesList: $($GetUsagesList |ConvertTo-Json -Depth 9 -Compress)"
-    } else {
+    }
+    else {
         Write-LogMessage -Type Verbose -Msg "`$GetUsagesList : $($GetUsagesList|ConvertTo-Json -Depth 1)"
     }
-
     return $GetUsagesList
 
 }
-#EndRegion '.\Private\Usages\Get-Usages.ps1' 87
+#EndRegion '.\Private\Usages\Get-Usages.ps1' 111
 #Region '.\Public\Common\Get-LogFilePath.ps1' -1
 
 Function Get-LogFilePAth{
@@ -655,6 +679,7 @@ Function Get-LogFilePAth{
 }
 #EndRegion '.\Public\Common\Get-LogFilePath.ps1' 4
 #Region '.\Public\Common\Initialize-EPVAPIModule.ps1' -1
+
 
 function Initialize-EPVAPIModule {
     <#
@@ -677,7 +702,7 @@ function Initialize-EPVAPIModule {
     "Module Loaded at $private:LOG_DATE" | Out-File $script:LOG_FILE_PATH -Append
     $Global:PACLIApp = "$private:ScriptLocation\Pacli.exe"
 }
-#EndRegion '.\Public\Common\Initialize-EPVAPIModule.ps1' 22
+#EndRegion '.\Public\Common\Initialize-EPVAPIModule.ps1' 23
 #Region '.\Public\Common\Set-LogFilePath.ps1' -1
 
 function Set-LogfilePath {
@@ -1576,9 +1601,9 @@ Function Import-Usageslist {
     }
 }
 #EndRegion '.\Public\Usages\Import-Usageslist.ps1' 22
-#Region '.\Public\Usages\Sync-UsageToPacli.ps1' -1
+#Region '.\Public\Usages\New-UsagePacli.ps1' -1
 
-Function Sync-UsageToPacli {
+Function New-UsagePacli {
     [CmdletBinding()]
     <#
         .SYNOPSIS
@@ -1674,46 +1699,54 @@ Function Sync-UsageToPacli {
                 }
             }
             If ($fail) {
-                Write-LogMessage -type Error -Msg "Synchronization of objects experienced Errors"
+                Write-LogMessage -type Error -Msg "Creation of objects experienced Errors"
                 Write-LogMessage -type Error -Msg $failArray
             } elseif (!$suppress) {
-                Write-LogMessage -type Info -Msg "Synchronization of object `"$($SourceObject.Name)`" in safe `"$($SourceObject.Safe)`" completed succesfully"
+                Write-LogMessage -type Info -Msg "Creation of object `"$($SourceObject.Name)`" in safe `"$($SourceObject.Safe)`" completed succesfully"
                 $SourceObject
             } Else {
-                Write-LogMessage -type Debug -Msg "Synchronization of object `"$($SourceObject.Name)`" in safe `"$($SourceObject.Safe)`" completed succesfully"
+                Write-LogMessage -type Debug -Msg "Creation of object `"$($SourceObject.Name)`" in safe `"$($SourceObject.Safe)`" completed succesfully"
             }
         } Catch [System.Management.Automation.HaltCommandException] {
             Write-LogMessage -type Error -MSG "Error while running PACLI Command"
             Write-LogMessage -Type Error -MSG "Command run: `"$($PSItem.Exception.Source)`"" 
             Write-LogMessage -Type Error -MSG "StandardError: `"$($PSItem.Exception.Data.StandardError)`""
         } Catch {
-            Write-LogMessage -type Error -MSG "Error while running Sync-UsageToPacli"
+            Write-LogMessage -type Error -MSG "Error while running New-UsagePacli"
             Write-LogMessage -Type Error -msg $PSItem
         }
     }
     End {
     }
 }
-#EndRegion '.\Public\Usages\Sync-UsageToPacli.ps1' 117
-#Region '.\Public\Usages\Sync-UsageToPacliPara.ps1' -1
+#EndRegion '.\Public\Usages\New-UsagePacli.ps1' 117
+#Region '.\Public\Usages\Sync-UsageToPacli.ps1' -1
 
-Function Sync-UsageToPacliPara {
+Function Sync-UsageToPacli {
+    [CmdletBinding()]
+    <#
+        .SYNOPSIS
+        Using the PSCustomObject array passed, creates the usages in target vault via PACLI
+        .DESCRIPTION
+        Using the PSCustomObject array passed, creates or modifies existing usages in target vault via PACLI
+        Single threaded process
+        Object requires the minimun of the following properties:
+            Name, UsageID, UsageInfo, Safe, Folder, File
+        Any additional properties will be added
+        .NOTES
+        If a usage was deleted, but a version still exists in the safe, the prior version will be restored and then updated.
+        #>
     param(
+        # The object to be processed.
+
         [Parameter(Mandatory = $true, ValueFromPipeline = $true)]
         [PSCustomObject[]]
         $SourceObject,
         [switch]
         $suppress
     )
-    begin {
-        $global:InDebug = $PSBoundParameters.Debug.IsPresent
-        $global:InVerbose = $PSBoundParameters.Verbose.IsPresent
-    }
+# Kept in place for backwards compatibility
+return New-UsagePACLI -SourceObject $SourceObject -Suppress $suppress
 
-    PROcess {
-        
-    }
-    End {
-    }
 }
-#EndRegion '.\Public\Usages\Sync-UsageToPacliPara.ps1' 20
+#EndRegion '.\Public\Usages\Sync-UsageToPacli.ps1' 28
