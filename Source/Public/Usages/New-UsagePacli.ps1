@@ -19,7 +19,7 @@ Function New-UsagePacli {
         [PSCustomObject[]]
         $SourceObject,
         [switch]
-        $suppress
+        $Suppress
     )
     begin {
         $global:InDebug = $PSBoundParameters.Debug.IsPresent
@@ -76,7 +76,7 @@ Function New-UsagePacli {
             Write-LogMessage -type debug -MSG "The following file catagories need to be added to `"$($SourceObject.Name)`" in safe `"$($SourceObject.Safe)`": $($addFileCatResult |Where-Object {$Psitem -notin $difFileCat})"
             Write-LogMessage -type debug -MSG "The following file catagories do not match on `"$($SourceObject.Name)`" in safe `"$($SourceObject.Safe)`": $($($difFileCat| Where-Object {$psitem.Property -notin $addFileCatResult}).Property)"
 
-            IF ([string]::IsNullOrEmpty($difFileCat)) {
+            IF ([string]::IsNullOrEmpty($difFileCat )) {
                 Write-LogMessage -type debug -MSG "`"$($SourceObject.Name)`" in safe `"$($SourceObject.Safe)`" requires no updates"
             }
             else {
@@ -117,7 +117,7 @@ Function New-UsagePacli {
                 $SourceObject
             }
             Else {
-                Write-LogMessage -type Debug -Msg "Creation of object `"$($SourceObject.Name)`" in safe `"$($SourceObject.Safe)`" completed succesfully"
+                Write-LogMessage -type LogOnly -Msg "Creation of object `"$($SourceObject.Name)`" in safe `"$($SourceObject.Safe)`" completed succesfully"
             }
         }
         Catch [System.Management.Automation.HaltCommandException] {

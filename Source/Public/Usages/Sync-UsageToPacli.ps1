@@ -21,7 +21,6 @@ Function Sync-UsageToPacli {
         [switch]
         $suppress
     )
-# Kept in place for backwards compatibility
-return New-UsagePACLI -SourceObject $SourceObject -Suppress:$suppress
-
+    # Kept in place for backwards compatibility
+    return $($SourceObject | New-UsagePACLI -Suppress:$suppress)
 }

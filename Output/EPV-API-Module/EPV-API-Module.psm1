@@ -1768,7 +1768,7 @@ Function Sync-UsageToPacli {
         $suppress
     )
 # Kept in place for backwards compatibility
-return New-UsagePACLI -SourceObject $SourceObject -Suppress $suppress
+return New-UsagePACLI -SourceObject $SourceObject -Suppress:$suppress
 
 }
 #EndRegion '.\Public\Usages\Sync-UsageToPacli.ps1' 28
